@@ -88,7 +88,7 @@
   overflow: hidden;
   aspect-ratio: 4 / 3;
   border-radius: 10px;
-  background: #edf2ee;
+  background: #edf5ff;
 }
 
 .admin-folder-preview-image,
@@ -100,7 +100,7 @@
 }
 
 .admin-folder-preview-empty {
-  background: linear-gradient(135deg, #edf2ee, #dce7de);
+  background: linear-gradient(135deg, #edf5ff, #dcecff);
 }
 
 .admin-folder-meta h3 {
@@ -157,7 +157,7 @@
 
 .admin-photo-folder-header h3 {
   margin: 4px 0 0;
-  color: #204b2b;
+  color: #0b3f86;
   font-size: 22px;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -175,21 +175,21 @@
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #edf2ee;
+  background: #edf5ff;
   color: #ffffff;
   padding: 0;
   text-align: left;
 }
 
 .admin-photo-card:hover {
-  border-color: #7dab88;
+  border-color: #79aee8;
 }
 
 .admin-photo-image {
   display: block;
   width: 100%;
   aspect-ratio: 4 / 3;
-  background: #edf2ee;
+  background: #edf5ff;
   object-fit: cover;
 }
 
@@ -206,4 +206,5 @@
   padding: 24px 9px 8px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.48);
 }
+
 

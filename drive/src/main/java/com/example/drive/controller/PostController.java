@@ -2,6 +2,7 @@ package com.example.drive.controller;
 
 import com.example.drive.dto.CommentCreateRequest;
 import com.example.drive.dto.PostResponse;
+import com.example.drive.dto.PostUpdateRequest;
 import com.example.drive.dto.UserStatsResponse;
 import com.example.drive.service.PostService;
 import com.example.drive.service.PostService.PostFile;
@@ -36,9 +37,10 @@ public class PostController {
             Authentication authentication,
             @RequestParam("image") MultipartFile image,
             @RequestParam(value = "caption", required = false) String caption,
-            @RequestParam(value = "locationName", required = false) String locationName
+            @RequestParam(value = "locationName", required = false) String locationName,
+            @RequestParam(value = "categoryTag", required = false) String categoryTag
     ) {
-        return ResponseEntity.ok(postService.createPost(authentication.getName(), caption, locationName, image));
+        return ResponseEntity.ok(postService.createPost(authentication.getName(), caption, locationName, categoryTag, image));
     }
 
     @GetMapping("/me")
@@ -49,6 +51,19 @@ public class PostController {
     @GetMapping("/me/stats")
     public ResponseEntity<UserStatsResponse> myStats(Authentication authentication) {
         return ResponseEntity.ok(postService.getMyStats(authentication.getName()));
+    }
+
+    @GetMapping("/users/{username}")
+    public ResponseEntity<List<PostResponse>> userPosts(
+            Authentication authentication,
+            @PathVariable("username") String username
+    ) {
+        return ResponseEntity.ok(postService.getUserPosts(username, authentication.getName()));
+    }
+
+    @GetMapping("/users/{username}/stats")
+    public ResponseEntity<UserStatsResponse> userStats(@PathVariable("username") String username) {
+        return ResponseEntity.ok(postService.getUserStats(username));
     }
 
     @GetMapping("/admin")
@@ -71,10 +86,26 @@ public class PostController {
         return ResponseEntity.ok(postService.addComment(authentication.getName(), id, request.getContent()));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<PostResponse> update(
+            Authentication authentication,
+            @PathVariable("id") Long id,
+            @RequestBody PostUpdateRequest request
+    ) {
+        return ResponseEntity.ok(postService.updatePost(
+                authentication.getName(),
+                id,
+                request.getCaption(),
+                request.getLocationName(),
+                request.getCategoryTag(),
+                isAdmin(authentication)
+        ));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> delete(Authentication authentication, @PathVariable("id") Long id) {
         postService.deletePost(authentication.getName(), id, isAdmin(authentication));
-        return ResponseEntity.ok(Map.of("message", "게시물이 삭제되었습니다."));
+        return ResponseEntity.ok(Map.of("message", "Post deleted."));
     }
 
     @GetMapping("/{id}/image")

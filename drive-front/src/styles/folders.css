@@ -31,8 +31,8 @@
 }
 
 .folder-card:hover {
-  border-color: #7dab88;
-  background: #f6fbf7;
+  border-color: #79aee8;
+  background: #f6faff;
 }
 
 .folder-card.dragging {
@@ -70,8 +70,8 @@
   height: 102px;
   border: 6px solid #ffffff;
   border-bottom-width: 17px;
-  background: #101510;
-  box-shadow: 0 6px 14px rgba(17, 38, 20, 0.18);
+  background: #061528;
+  box-shadow: 0 6px 14px rgba(5, 31, 63, 0.18);
   overflow: hidden;
 }
 
@@ -132,7 +132,7 @@
 .folder-name {
   min-width: 0;
   display: block;
-  color: #245032;
+  color: #0b4f9c;
   font-size: 17px;
   font-weight: 700;
   line-height: 1.25;
@@ -157,7 +157,7 @@
 .folder-tags span {
   border-radius: 999px;
   background: var(--accent-soft);
-  color: #21472b;
+  color: #0b3f86;
   font-size: 11px;
   font-weight: 700;
   line-height: 1.2;
@@ -209,7 +209,7 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 12px 28px rgba(27, 55, 36, 0.14);
+  box-shadow: 0 12px 28px rgba(29, 114, 216, 0.14);
   padding: 4px;
 }
 
@@ -226,7 +226,7 @@
 
 .folder-menu-item:hover {
   background: var(--accent-soft);
-  color: #21472b;
+  color: #0b3f86;
 }
 
 .folder-menu-item.danger {
@@ -273,4 +273,5 @@
   border-radius: 8px;
   font-size: 13px;
 }
+
 

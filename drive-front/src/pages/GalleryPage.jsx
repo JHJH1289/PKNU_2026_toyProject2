@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { addPostComment, createPost, deletePost, fetchAdminPosts, fetchFeed, fetchMyPosts, fetchMyStats, togglePostLike } from "../api/postApi";
+import { fetchProfile, fetchUserProfile, updateProfile } from "../api/profileApi";
+import { addPostComment, createPost, deletePost, fetchAdminPosts, fetchFeed, fetchMyPosts, fetchMyStats, fetchUserPosts, fetchUserStats, togglePostLike, updatePost } from "../api/postApi";
 import AuthImage from "../components/AuthImage";
 
 const TABS = {
@@ -8,20 +9,39 @@ const TABS = {
   admin: "admin",
 };
 
+const DEFAULT_CATEGORIES = ["\uC5EC\uD589", "\uC2DD\uC0AC", "\uCE74\uD398"];
+
 export default function GalleryPage({ username, role, onLogout }) {
   const [tab, setTab] = useState(TABS.feed);
   const [posts, setPosts] = useState([]);
+  const [profile, setProfile] = useState({ username, bio: "", profileImageUrl: "" });
+  const [profileUsername, setProfileUsername] = useState(username);
   const [myStats, setMyStats] = useState({ postCount: 0, totalViewCount: 0 });
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isAdmin = role === "ADMIN";
   const title = useMemo(() => {
-    if (tab === TABS.me) return "My Page";
+    if (tab === TABS.me) return profileUsername === username ? "My Page" : `${profileUsername}`;
     if (tab === TABS.admin) return "Admin Mode";
     return "Travel Feed";
-  }, [tab]);
+  }, [profileUsername, tab, username]);
+
+  const categories = useMemo(() => {
+    const merged = new Set(DEFAULT_CATEGORIES);
+    posts.forEach((post) => {
+      splitTags(post.categoryTag).forEach((tag) => merged.add(tag));
+    });
+    return ["All", ...merged];
+  }, [posts]);
+
+  const visiblePosts = useMemo(() => {
+    if (categoryFilter === "All") return posts;
+    return posts.filter((post) => splitTags(post.categoryTag).includes(categoryFilter));
+  }, [categoryFilter, posts]);
 
   async function load(nextTab = tab) {
     try {
@@ -29,9 +49,16 @@ export default function GalleryPage({ username, role, onLogout }) {
       setStatus("");
 
       if (nextTab === TABS.me) {
-        const [myPosts, stats] = await Promise.all([fetchMyPosts(), fetchMyStats()]);
-        setPosts(myPosts);
+        const targetUsername = profileUsername || username;
+        const ownProfile = targetUsername === username;
+        const [profilePosts, stats, nextProfile] = await Promise.all([
+          ownProfile ? fetchMyPosts() : fetchUserPosts(targetUsername),
+          ownProfile ? fetchMyStats() : fetchUserStats(targetUsername),
+          ownProfile ? fetchProfile() : fetchUserProfile(targetUsername),
+        ]);
+        setPosts(profilePosts);
         setMyStats(stats || { postCount: 0, totalViewCount: 0 });
+        setProfile(nextProfile || { username, bio: "", profileImageUrl: "" });
         return;
       }
 
@@ -50,9 +77,40 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   function changeTab(nextTab) {
+    if (nextTab === TABS.me) {
+      openUserProfile(username);
+      return;
+    }
+
     setTab(nextTab);
     setComposerOpen(false);
+    setCategoryFilter("All");
+    setSidebarOpen(false);
     load(nextTab);
+  }
+
+  async function openUserProfile(targetUsername) {
+    try {
+      setTab(TABS.me);
+      setProfileUsername(targetUsername);
+      setCategoryFilter("All");
+      setSidebarOpen(false);
+      setLoading(true);
+      setStatus("");
+      const ownProfile = targetUsername === username;
+      const [profilePosts, stats, nextProfile] = await Promise.all([
+        ownProfile ? fetchMyPosts() : fetchUserPosts(targetUsername),
+        ownProfile ? fetchMyStats() : fetchUserStats(targetUsername),
+        ownProfile ? fetchProfile() : fetchUserProfile(targetUsername),
+      ]);
+      setPosts(profilePosts);
+      setMyStats(stats || { postCount: 0, totalViewCount: 0 });
+      setProfile(nextProfile || { username: targetUsername, bio: "", profileImageUrl: "" });
+    } catch (error) {
+      setStatus(error.message || "Failed to load profile.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleCreatePost(form) {
@@ -63,6 +121,23 @@ export default function GalleryPage({ username, role, onLogout }) {
       await load(tab);
     } catch (error) {
       setStatus(error.message || "Failed to create post.");
+    }
+  }
+
+  async function handleUpdatePost(postId, form) {
+    try {
+      replacePost(await updatePost(postId, form));
+    } catch (error) {
+      setStatus(error.message || "Failed to update post.");
+    }
+  }
+
+  async function handleUpdateProfile(form) {
+    try {
+      setProfile(await updateProfile(form));
+      await load(TABS.me);
+    } catch (error) {
+      setStatus(error.message || "Failed to update profile.");
     }
   }
 
@@ -109,11 +184,23 @@ export default function GalleryPage({ username, role, onLogout }) {
 
   useEffect(() => {
     load(TABS.feed);
+    fetchProfile().then((nextProfile) => {
+      if (nextProfile) setProfile(nextProfile);
+    }).catch(() => {});
   }, []);
 
   return (
     <div className="travel-app">
-      <aside className="travel-sidebar">
+      {sidebarOpen && (
+        <button
+          className="travel-sidebar-scrim"
+          type="button"
+          aria-label="close sidebar"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={sidebarOpen ? "travel-sidebar open" : "travel-sidebar"}>
         <div className="travel-brand">
           <span>T</span>
           <div>
@@ -123,9 +210,29 @@ export default function GalleryPage({ username, role, onLogout }) {
         </div>
 
         <nav className="travel-nav" aria-label="main navigation">
-          <button className={tab === TABS.feed ? "active" : ""} type="button" onClick={() => changeTab(TABS.feed)}>
+          <button className={tab === TABS.feed && categoryFilter === "All" ? "active" : ""} type="button" onClick={() => changeTab(TABS.feed)}>
             Home
           </button>
+
+          <div className="travel-sidebar-categories">
+            <span>Categories</span>
+            {categories.filter((category) => category !== "All").map((category) => (
+              <button
+                key={category}
+                type="button"
+                className={tab === TABS.feed && categoryFilter === category ? "active" : ""}
+                onClick={() => {
+                  setTab(TABS.feed);
+                  setCategoryFilter(category);
+                  setSidebarOpen(false);
+                  load(TABS.feed);
+                }}
+              >
+                #{category}
+              </button>
+            ))}
+          </div>
+
           <button className={tab === TABS.me ? "active" : ""} type="button" onClick={() => changeTab(TABS.me)}>
             My Page
           </button>
@@ -150,21 +257,29 @@ export default function GalleryPage({ username, role, onLogout }) {
             <h1>{title}</h1>
             <p>Share travel photos, places, and moments.</p>
           </div>
-          <button type="button" onClick={() => setComposerOpen(true)}>
-            Create
-          </button>
+          <div className="travel-topbar-actions">
+            <button type="button" onClick={() => setComposerOpen(true)}>
+              Create
+            </button>
+            <button className="travel-mobile-menu-btn" type="button" onClick={() => setSidebarOpen(true)}>
+              ☰
+            </button>
+          </div>
         </header>
 
         {tab === TABS.me && (
-          <section className="travel-stats">
-            <div>
-              <span>Posts</span>
-              <strong>{myStats.postCount || 0}</strong>
-            </div>
-            <div>
-              <span>Total views</span>
-              <strong>{myStats.totalViewCount || 0}</strong>
-            </div>
+          <ProfileCard
+            profile={profile}
+            stats={myStats}
+            onSubmit={handleUpdateProfile}
+            editable={profile.username === username}
+          />
+        )}
+
+        {tab === TABS.me && (
+          <section className="travel-map-slot">
+            <strong>Map API Area</strong>
+            <span>Reserved for travel route and visited place map.</span>
           </section>
         )}
 
@@ -172,20 +287,23 @@ export default function GalleryPage({ username, role, onLogout }) {
         {loading && <div className="travel-status">Loading...</div>}
 
         <section className="travel-feed">
-          {!loading && posts.length === 0 && (
+          {!loading && visiblePosts.length === 0 && (
             <div className="travel-empty">No posts yet.</div>
           )}
 
-          {posts.map((post) => (
+          {visiblePosts.map((post) => (
             <PostCard
               key={post.id}
               post={post}
               currentUsername={username}
               adminMode={tab === TABS.admin}
+              canEdit={post.ownerId === username}
               canDelete={isAdmin || post.ownerId === username}
               onLike={handleLike}
               onComment={handleComment}
               onDelete={handleDelete}
+              onUpdate={handleUpdatePost}
+              onOpenProfile={openUserProfile}
             />
           ))}
         </section>
@@ -197,13 +315,74 @@ export default function GalleryPage({ username, role, onLogout }) {
           onSubmit={handleCreatePost}
         />
       )}
+
+      <button className="travel-mobile-create-btn" type="button" onClick={() => setComposerOpen(true)} aria-label="create post">
+        +
+      </button>
     </div>
   );
 }
 
-function PostCard({ post, currentUsername, adminMode, canDelete, onLike, onComment, onDelete }) {
+function ProfileCard({ profile, stats, onSubmit, editable }) {
+  const [editing, setEditing] = useState(false);
+  const [bio, setBio] = useState(profile?.bio || "");
+  const [profileImage, setProfileImage] = useState(null);
+
+  useEffect(() => {
+    setBio(profile?.bio || "");
+    setProfileImage(null);
+  }, [profile]);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    await onSubmit({ bio, profileImage });
+    setEditing(false);
+  }
+
+  return (
+    <section className="travel-profile-card">
+      <div className="travel-profile-photo">
+        {profile?.profileImageUrl ? (
+          <AuthImage src={profile.profileImageUrl} alt="profile" />
+        ) : (
+          <span>{(profile?.username || "T").slice(0, 1).toUpperCase()}</span>
+        )}
+      </div>
+      <div className="travel-profile-main">
+        <div className="travel-profile-head">
+          <h2>{profile?.username}</h2>
+          {editable && (
+            <button type="button" onClick={() => setEditing((value) => !value)}>
+              Edit Profile
+            </button>
+          )}
+        </div>
+        <div className="travel-profile-stats">
+          <span><strong>{stats.postCount || 0}</strong> posts</span>
+          <span><strong>{stats.totalViewCount || 0}</strong> views</span>
+        </div>
+        <p>{profile?.bio || "No profile text yet."}</p>
+
+        {editing && (
+          <form className="travel-profile-form" onSubmit={handleSubmit}>
+            <input type="file" accept="image/*" onChange={(event) => setProfileImage(event.target.files?.[0] || null)} />
+            <textarea value={bio} onChange={(event) => setBio(event.target.value)} rows={3} placeholder="Profile text" />
+            <div>
+              <button type="submit">Save</button>
+              <button type="button" onClick={() => setEditing(false)}>Cancel</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike, onComment, onDelete, onUpdate, onOpenProfile }) {
   const [comment, setComment] = useState("");
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   async function submitComment(event) {
     event.preventDefault();
@@ -213,20 +392,46 @@ function PostCard({ post, currentUsername, adminMode, canDelete, onLike, onComme
     setCommentsOpen(true);
   }
 
+  async function handleEditSubmit(form) {
+    await onUpdate(post.id, form);
+    setEditing(false);
+    setMenuOpen(false);
+  }
+
   return (
     <article className="travel-post-card">
       <header className="travel-post-header">
-        <div className="travel-profile">
-          <span>{post.ownerId.slice(0, 1).toUpperCase()}</span>
+        <button className="travel-profile travel-profile-link" type="button" onClick={() => onOpenProfile(post.ownerId)}>
+          {post.ownerProfileImageUrl ? (
+            <AuthImage className="travel-profile-mini-image" src={post.ownerProfileImageUrl} alt={`${post.ownerId} profile`} />
+          ) : (
+            <span>{post.ownerId.slice(0, 1).toUpperCase()}</span>
+          )}
           <div>
             <strong>{post.ownerId}</strong>
             {post.locationName && <small>{post.locationName}</small>}
           </div>
-        </div>
-        {(canDelete || adminMode) && (
-          <button className="travel-danger-btn" type="button" onClick={() => onDelete(post.id)}>
-            Delete
-          </button>
+        </button>
+        {(canEdit || canDelete || adminMode) && (
+          <div className="travel-post-menu">
+            <button type="button" className="travel-menu-btn" onClick={() => setMenuOpen((value) => !value)}>
+              ⋯
+            </button>
+            {menuOpen && (
+              <div className="travel-menu-dropdown">
+                {canEdit && (
+                  <button type="button" onClick={() => setEditing(true)}>
+                    Edit
+                  </button>
+                )}
+                {canDelete && (
+                  <button type="button" className="danger" onClick={() => onDelete(post.id)}>
+                    Delete
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </header>
 
@@ -250,17 +455,31 @@ function PostCard({ post, currentUsername, adminMode, canDelete, onLike, onComme
               onClick={() => setCommentsOpen((value) => !value)}
               aria-label="comments"
             >
-              💬
+              C
             </button>
             <span className="travel-action-count">{post.comments.length}</span>
           </div>
           <span>Views {post.viewCount}</span>
         </div>
 
+        <div className="travel-tag-row">
+          {splitTags(post.categoryTag).map((tag) => (
+            <span className="travel-category-chip" key={tag}>#{tag}</span>
+          ))}
+        </div>
+
         {post.caption && (
           <p className="travel-caption">
             <strong>{post.ownerId}</strong> {post.caption}
           </p>
+        )}
+
+        {editing && (
+          <PostEditForm
+            post={post}
+            onCancel={() => setEditing(false)}
+            onSubmit={handleEditSubmit}
+          />
         )}
 
         {commentsOpen && (
@@ -293,10 +512,34 @@ function PostCard({ post, currentUsername, adminMode, canDelete, onLike, onComme
   );
 }
 
+function PostEditForm({ post, onCancel, onSubmit }) {
+  const [caption, setCaption] = useState(post.caption || "");
+  const [locationName, setLocationName] = useState(post.locationName || "");
+  const [categoryTag, setCategoryTag] = useState(post.categoryTag || DEFAULT_CATEGORIES[0]);
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    onSubmit({ caption, locationName, categoryTag });
+  }
+
+  return (
+    <form className="travel-edit-form" onSubmit={handleSubmit}>
+      <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
+      <input value={locationName} onChange={(event) => setLocationName(event.target.value)} placeholder="Place" />
+      <textarea value={caption} onChange={(event) => setCaption(event.target.value)} rows={3} placeholder="Caption" />
+      <div>
+        <button type="submit">Save</button>
+        <button type="button" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
 function PostComposer({ onClose, onSubmit }) {
   const [image, setImage] = useState(null);
   const [caption, setCaption] = useState("");
   const [locationName, setLocationName] = useState("");
+  const [categoryTag, setCategoryTag] = useState(DEFAULT_CATEGORIES[0]);
   const [previewUrl, setPreviewUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -315,7 +558,7 @@ function PostComposer({ onClose, onSubmit }) {
 
     try {
       setSubmitting(true);
-      await onSubmit({ image, caption, locationName });
+      await onSubmit({ image, caption, locationName, categoryTag });
     } finally {
       setSubmitting(false);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -333,6 +576,7 @@ function PostComposer({ onClose, onSubmit }) {
         <input type="file" accept="image/*" onChange={handleImageChange} />
         {previewUrl && <img className="travel-preview" src={previewUrl} alt="preview" />}
 
+        <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
         <input
           type="text"
           value={locationName}
@@ -351,4 +595,33 @@ function PostComposer({ onClose, onSubmit }) {
       </form>
     </div>
   );
+}
+
+function CategoryTagInput({ value, onChange }) {
+  return (
+    <label className="travel-category-select">
+      <span>Category tags</span>
+      <input
+        list="travel-category-tags"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="여행 식사 카페"
+      />
+      <datalist id="travel-category-tags">
+        {DEFAULT_CATEGORIES.map((category) => (
+          <option key={category} value={category} />
+        ))}
+      </datalist>
+      <small>Separate tags with spaces or commas.</small>
+    </label>
+  );
+}
+
+function splitTags(value) {
+  if (!value) return [DEFAULT_CATEGORIES[0]];
+  const tags = String(value)
+    .split(/[,#\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  return tags.length ? tags : [DEFAULT_CATEGORIES[0]];
 }

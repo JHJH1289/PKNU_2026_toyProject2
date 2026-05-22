@@ -19,6 +19,12 @@ public class User {
     @Column(length = 20)
     private String role;
 
+    @Column(length = 500)
+    private String profileImageStorageKey;
+
+    @Column(length = 500)
+    private String bio;
+
     protected User() {
     }
 
@@ -46,5 +52,20 @@ public class User {
 
     public String getRole() {
         return role;
+    }
+
+    public String getProfileImageStorageKey() {
+        return profileImageStorageKey;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void updateProfile(String bio, String profileImageStorageKey) {
+        this.bio = bio;
+        if (profileImageStorageKey != null && !profileImageStorageKey.isBlank()) {
+            this.profileImageStorageKey = profileImageStorageKey;
+        }
     }
 }

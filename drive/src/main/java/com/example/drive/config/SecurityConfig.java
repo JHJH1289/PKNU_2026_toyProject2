@@ -87,6 +87,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/share/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/me", "/api/me/**").authenticated()
+                        .requestMatchers("/api/users/**").authenticated()
                         .requestMatchers("/api/posts/**").authenticated()
                         .requestMatchers("/api/photos/**").authenticated()
                         .anyRequest().permitAll())

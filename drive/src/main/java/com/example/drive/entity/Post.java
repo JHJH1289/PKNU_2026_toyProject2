@@ -31,6 +31,9 @@ public class Post {
     @Column(length = 120)
     private String locationName;
 
+    @Column(length = 200)
+    private String categoryTag;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -53,6 +56,7 @@ public class Post {
             Long fileSize,
             String caption,
             String locationName,
+            String categoryTag,
             LocalDateTime createdAt
     ) {
         this.ownerId = ownerId;
@@ -61,6 +65,7 @@ public class Post {
         this.fileSize = fileSize;
         this.caption = caption;
         this.locationName = locationName;
+        this.categoryTag = categoryTag;
         this.createdAt = createdAt;
         this.viewCount = 0L;
     }
@@ -72,6 +77,7 @@ public class Post {
     public Long getFileSize() { return fileSize; }
     public String getCaption() { return caption; }
     public String getLocationName() { return locationName; }
+    public String getCategoryTag() { return categoryTag; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public long getViewCount() { return viewCount; }
     public List<Comment> getComments() { return comments; }
@@ -79,5 +85,11 @@ public class Post {
 
     public void increaseViewCount() {
         this.viewCount += 1L;
+    }
+
+    public void updateDetails(String caption, String locationName, String categoryTag) {
+        this.caption = caption;
+        this.locationName = locationName;
+        this.categoryTag = categoryTag;
     }
 }

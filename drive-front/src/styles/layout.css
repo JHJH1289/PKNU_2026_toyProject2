@@ -1,9 +1,9 @@
 ﻿.status-box {
   margin-top: 18px;
-  border: 1px solid #cddfd1;
+  border: 1px solid #c9daef;
   border-radius: 10px;
-  background: #edf6ee;
-  color: #26452d;
+  background: #edf6ff;
+  color: #1b4f8f;
   line-height: 1.45;
   padding: 14px;
   white-space: pre-wrap;
@@ -18,8 +18,8 @@
   width: max-content;
   max-width: min(520px, calc(100vw - 32px));
   border-radius: 10px;
-  background: #204b2b;
-  box-shadow: 0 10px 24px rgba(17, 38, 20, 0.22);
+  background: #0b3f86;
+  box-shadow: 0 10px 24px rgba(17, 49, 92, 0.22);
   color: #ffffff;
   font-size: 14px;
   line-height: 1.4;
@@ -86,7 +86,7 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);
-  box-shadow: 0 12px 28px rgba(27, 55, 36, 0.14);
+  box-shadow: 0 12px 28px rgba(29, 114, 216, 0.14);
   padding: 10px;
 }
 
@@ -148,14 +148,14 @@
 .tab,
 .folder-manage-btn {
   background: var(--accent-soft);
-  color: #21472b;
+  color: #0b3f86;
 }
 
 .secondary-btn:hover,
 .back-btn:hover,
 .tab:hover,
 .folder-manage-btn:hover {
-  background: #cde1d0;
+  background: #d9eaff;
 }
 
 .back-btn {
@@ -227,8 +227,8 @@
   display: flex;
   height: 100vh;
   min-width: 0;
-  border-right: 1px solid #dde6ef;
-  background: #f5f8fc;
+  border-right: 1px solid #d9e2ef;
+  background: #f5f9ff;
   flex-direction: column;
   gap: 18px;
   padding: 18px 14px;
@@ -246,7 +246,7 @@
   align-items: center;
   gap: 10px;
   min-height: 38px;
-  color: #1f2a24;
+  color: #172033;
   font-size: 18px;
 }
 
@@ -257,7 +257,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 9px;
-  background: linear-gradient(135deg, #2f6b3b, #77b88a);
+  background: linear-gradient(135deg, #1d72d8, #73b7ff);
   color: #ffffff;
   font-size: 18px;
   font-weight: 800;
@@ -287,17 +287,17 @@
   border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 3px 10px rgba(42, 60, 75, 0.12);
-  color: #1f2a24;
+  color: #172033;
   font-weight: 700;
   padding: 14px 18px;
 }
 
 .drive-new-btn:hover {
-  background: #edf6ee;
+  background: #edf6ff;
 }
 
 .drive-new-btn span {
-  color: #21472b;
+  color: #0b3f86;
   font-size: 24px;
   font-weight: 400;
   line-height: 1;
@@ -317,7 +317,7 @@
   gap: 12px;
   border-radius: 999px;
   background: transparent;
-  color: #253128;
+  color: #172033;
   font-size: 14px;
   padding: 10px 14px;
   text-align: left;
@@ -326,19 +326,19 @@
 .drive-nav button:hover,
 .drive-nav button.active,
 .drive-logout-btn:hover {
-  background: #dcebdd;
-  color: #21472b;
+  background: #e8f3ff;
+  color: #0b3f86;
 }
 
 .drive-nav button span {
   width: 18px;
-  color: #204b2b;
+  color: #0b3f86;
   text-align: center;
 }
 
 .drive-storage {
   margin-top: auto;
-  border-top: 1px solid #dce5df;
+  border-top: 1px solid #d9e2ef;
   padding: 16px 4px 0;
 }
 
@@ -347,12 +347,12 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  color: #2c3a31;
+  color: #21344f;
   font-size: 13px;
 }
 
 .drive-storage-label strong {
-  color: #204b2b;
+  color: #0b3f86;
   font-size: 14px;
 }
 
@@ -361,14 +361,14 @@
   overflow: hidden;
   margin-top: 10px;
   border-radius: 999px;
-  background: #d9e2dc;
+  background: #d9e2ef;
 }
 
 .drive-storage-meter span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #2f6b3b;
+  background: #1d72d8;
 }
 
 .drive-storage p {
@@ -437,4 +437,5 @@
   background: #ffffff;
   padding: 22px;
 }
+
 

@@ -35,6 +35,7 @@ npm run build
 필수 테이블:
 
 - `users`: 로그인 사용자
+- `users.profile_image_storage_key`, `users.bio`: 마이페이지 프로필 사진과 소개글
 - `admins`: 관리자 계정 식별
 - `posts`: 여행 게시물
 - `comments`: 게시물 댓글
@@ -84,10 +85,13 @@ EXIF 기능은 사용하지 않도록 제거했습니다.
 
 | 파일 | 주요 메서드 | 역할 |
 | --- | --- | --- |
+| `UserProfileController.java` | `profile`, `updateProfile`, `profileImage` | 마이페이지 프로필 조회, 프로필 사진/소개글 수정, 프로필 이미지 응답 |
+| `UserProfileService.java` | `getProfile`, `getUserProfile`, `updateProfile`, `getProfileImage`, `getUserProfileImage` | 사용자 프로필 저장/조회 로직 |
 | `PostController.java` | `feed`, `create`, `myPosts`, `myStats`, `adminPosts`, `like`, `comment`, `delete`, `image` | 게시물 피드, 업로드, 좋아요, 댓글, 삭제, 이미지 조회 API |
-| `PostService.java` | `createPost`, `getFeed`, `getMyPosts`, `getAllPostsForAdmin`, `getMyStats`, `toggleLike`, `addComment`, `getPostImage`, `deletePost` | 게시물 핵심 비즈니스 로직 |
+| `PostController.java` | `update` | 게시물 설명, 장소, 카테고리 태그 수정 API |
+| `PostService.java` | `createPost`, `updatePost`, `getFeed`, `getMyPosts`, `getUserPosts`, `getAllPostsForAdmin`, `getMyStats`, `getUserStats`, `toggleLike`, `addComment`, `getPostImage`, `deletePost` | 게시물 핵심 비즈니스 로직 |
 | `PostService.java` | `registerView` | `post_views`를 사용해 사용자별 1회만 조회수 증가 |
-| `PostService.java` | `toPostResponse`, `findPost`, `normalizeOwnerId`, `normalizeText` | 응답 변환과 내부 유틸 |
+| `PostService.java` | `toPostResponse`, `findPost`, `normalizeOwnerId`, `normalizeText`, `normalizeCategoryTag` | 응답 변환과 내부 유틸 |
 
 ### Entities
 
@@ -95,7 +99,7 @@ EXIF 기능은 사용하지 않도록 제거했습니다.
 | --- | --- | --- |
 | `User.java` | 생성자, getter | 로그인 사용자 엔티티 |
 | `Admin.java` | 생성자, getter | 관리자 식별 엔티티 |
-| `Post.java` | 생성자, getter, `increaseViewCount` | 여행 게시물 엔티티 |
+| `Post.java` | 생성자, getter, `increaseViewCount`, `updateDetails` | 여행 게시물 엔티티와 수정 로직 |
 | `Comment.java` | 생성자, getter | 게시물 댓글 엔티티 |
 | `PostLike.java` | 생성자, getter | 게시물 좋아요 엔티티 |
 | `PostView.java` | 생성자, getter | 사용자별 게시물 조회 기록 엔티티 |
@@ -119,6 +123,7 @@ EXIF 기능은 사용하지 않도록 제거했습니다.
 | `RegisterRequest.java`, `RegisterResponse.java` | 회원가입 요청/응답 |
 | `AuthResponse.java` | 인증 상태 응답 |
 | `PostResponse.java` | 피드에 내려가는 게시물 응답 |
+| `PostUpdateRequest.java` | 게시물 수정 요청 |
 | `CommentCreateRequest.java` | 댓글 생성 요청 |
 | `CommentResponse.java` | 댓글 응답 |
 | `UserStatsResponse.java` | 마이페이지 통계 응답 |
@@ -160,9 +165,9 @@ EXIF 기능은 사용하지 않도록 제거했습니다.
 | 파일 | 주요 메서드/컴포넌트 | 역할 |
 | --- | --- | --- |
 | `pages/LoginPage.jsx` | `LoginPage`, `handleSubmit` | 로그인/회원가입 화면 |
-| `pages/GalleryPage.jsx` | `GalleryPage`, `PostCard`, `PostComposer` | Travelog 메인 피드, 마이페이지, 관리자 모드, 게시물 작성 |
-| `pages/GalleryPage.jsx` | `load`, `changeTab`, `handleCreatePost`, `handleLike`, `handleComment`, `handleDelete`, `replacePost`, `handleLogoutClick` | 피드 데이터 동기화와 사용자 액션 처리 |
-| `pages/GalleryPage.jsx` | `submitComment`, `handleImageChange`, `handleSubmit` | 댓글 등록, 이미지 미리보기, 게시물 등록 |
+| `pages/GalleryPage.jsx` | `GalleryPage`, `PostCard`, `PostEditForm`, `PostComposer`, `CategorySelect` | Travelog 메인 피드, 마이페이지, 관리자 모드, 게시물 작성/수정, 카테고리 선택 |
+| `pages/GalleryPage.jsx` | `load`, `changeTab`, `handleCreatePost`, `handleUpdatePost`, `handleLike`, `handleComment`, `handleDelete`, `replacePost`, `handleLogoutClick` | 피드 데이터 동기화와 사용자 액션 처리 |
+| `pages/GalleryPage.jsx` | `submitComment`, `handleEditSubmit`, `handleImageChange`, `handleSubmit` | 댓글 등록, 게시물 수정, 이미지 미리보기, 게시물 등록 |
 | `pages/SharedFolderPage.jsx` | 레거시 공유 폴더 페이지 | 현재 Travelog 메인 흐름에서는 사용하지 않음 |
 
 ### API
@@ -170,7 +175,8 @@ EXIF 기능은 사용하지 않도록 제거했습니다.
 | 파일 | 주요 메서드 | 역할 |
 | --- | --- | --- |
 | `api/authApi.js` | `login`, `register` | 인증 API 호출 |
-| `api/postApi.js` | `fetchFeed`, `fetchMyPosts`, `fetchMyStats`, `fetchAdminPosts`, `createPost`, `togglePostLike`, `addPostComment`, `deletePost` | Travelog 게시물 API 호출 |
+| `api/profileApi.js` | `fetchProfile`, `fetchUserProfile`, `updateProfile` | 마이페이지와 다른 사용자 프로필 조회/수정 API 호출 |
+| `api/postApi.js` | `fetchFeed`, `fetchMyPosts`, `fetchUserPosts`, `fetchMyStats`, `fetchUserStats`, `fetchAdminPosts`, `createPost`, `updatePost`, `togglePostLike`, `addPostComment`, `deletePost` | Travelog 게시물 API 호출 |
 | `api/postApi.js` | `request`, `normalizePost`, `normalizePosts`, `normalizeImageUrl` | 공통 요청 처리와 이미지 URL 보정 |
 | `api/photoApi.js`, `api/shareApi.js` | 레거시 사진/공유 API 호출 | 현재 Travelog 메인 흐름에서는 사용하지 않음 |
 
@@ -197,7 +203,7 @@ EXIF 기능은 사용하지 않도록 제거했습니다.
 | 파일 | 역할 |
 | --- | --- |
 | `index.css` | 전체 CSS import |
-| `styles/travel.css` | 현재 Travelog 피드 UI. 푸른색 계열 테마, 카드형 피드, 모바일 반응형 |
+| `styles/travel.css` | 현재 Travelog 피드 UI. 푸른색 계열 테마, 카드형 피드, 사이드바 카테고리, 마이페이지 프로필, 모바일 우측 사이드 드로어 |
 | `styles/base.css`, `layout.css`, `folders.css`, `photos.css`, `modals.css`, `admin.css`, `responsive.css` | 레거시 드라이브 UI 스타일과 공통 스타일 |
 
 ## 현재 주요 흐름
@@ -207,5 +213,10 @@ EXIF 기능은 사용하지 않도록 제거했습니다.
 3. `GalleryPage`는 `/api/posts`로 전체 피드를 가져옵니다.
 4. 게시물 이미지는 `AuthImage`가 Authorization 헤더를 붙여 `/api/posts/{id}/image`에서 가져옵니다.
 5. 백엔드는 이미지 조회 시 `post_views`를 확인해서 같은 사용자의 중복 조회를 막고, 처음 볼 때만 `viewCount`를 증가시킵니다.
-6. 좋아요는 `/api/posts/{id}/like`에서 토글되고, 프론트에는 하트 아이콘과 숫자만 표시됩니다.
-7. 댓글은 기본으로 닫혀 있고, 댓글 아이콘을 누르면 목록과 입력창이 열립니다.
+6. 게시물 작성/수정 시 `categoryTag`를 태그 입력 방식으로 저장하며 기본 추천 카테고리는 `여행`, `식사`, `카페`입니다.
+7. 홈 아래 사이드바 카테고리 버튼으로 게시물을 필터링하며, `Home`은 전체 피드를 보여줍니다.
+8. 좋아요는 `/api/posts/{id}/like`에서 토글되고, 프론트에는 하트 아이콘과 숫자만 표시됩니다.
+9. 댓글은 기본으로 닫혀 있고, 댓글 아이콘을 누르면 목록과 입력창이 열립니다.
+10. 모바일에서는 메인 피드만 먼저 보이고, 우측 상단 `Menu` 버튼으로 사이드바가 오른쪽에서 열립니다.
+11. 마이페이지에서는 프로필 사진과 소개글을 인스타그램 프로필처럼 수정할 수 있습니다.
+12. 피드에서 작성자 프로필을 누르면 해당 사용자의 프로필과 게시물만 표시됩니다.

@@ -39,7 +39,7 @@
   align-items: center;
   gap: 10px;
   justify-content: flex-start;
-  border: 1px solid rgba(217, 226, 220, 0.9);
+  border: 1px solid rgba(217, 226, 239, 0.9);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.94);
   padding: 10px;
@@ -74,13 +74,13 @@
 .photo-bulk-tag {
   margin-left: auto;
   background: var(--accent-soft);
-  color: #21472b;
+  color: #0b3f86;
   padding: 8px 12px;
   font-size: 13px;
 }
 
 .photo-bulk-tag:hover {
-  background: #cde1d0;
+  background: #d9eaff;
 }
 
 .photo-bulk-tag.danger {
@@ -133,7 +133,7 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-soft);
-  color: #204b2b;
+  color: #0b3f86;
   font-size: 14px;
   font-weight: 800;
   line-height: 1.2;
@@ -151,14 +151,14 @@
   min-height: 30px;
   border-radius: 8px;
   background: var(--accent-soft);
-  color: #21472b;
+  color: #0b3f86;
   font-size: 12px;
   font-weight: 700;
   padding: 6px 9px;
 }
 
 .photo-date-tag-btn:hover {
-  background: #cde1d0;
+  background: #d9eaff;
 }
 
 .photo-date-tag-btn.danger {
@@ -186,7 +186,7 @@
 }
 
 .photo-card.selected {
-  outline: 3px solid rgba(47, 107, 59, 0.5);
+  outline: 3px solid rgba(29, 114, 216, 0.5);
   outline-offset: -3px;
 }
 
@@ -202,7 +202,7 @@
   height: 24px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 1px 5px rgba(17, 38, 20, 0.22);
+  box-shadow: 0 1px 5px rgba(17, 49, 92, 0.22);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.14s ease;
@@ -240,7 +240,7 @@
   width: auto;
   height: 126px;
   max-width: min(420px, 100%);
-  background: #edf2ee;
+  background: #edf5ff;
   object-fit: contain;
 }
 
@@ -272,7 +272,7 @@
   display: block;
   width: 100%;
   height: 180px;
-  background: #e7efe8;
+  background: #e8f3ff;
   object-fit: cover;
 }
 
@@ -318,7 +318,7 @@
 
 .shared-page {
   min-height: 100vh;
-  background: #f5f8fc;
+  background: #f5f9ff;
   color: var(--text);
 }
 
@@ -342,7 +342,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  color: #1f2a24;
+  color: #172033;
   font-size: 18px;
 }
 
@@ -353,7 +353,7 @@
 }
 
 .shared-brand span {
-  color: #204b2b;
+  color: #0b3f86;
 }
 
 .shared-link-label {
@@ -395,7 +395,7 @@
 
 .shared-title-block h1 {
   margin: 4px 0 0;
-  color: #204b2b;
+  color: #0b3f86;
   font-size: 30px;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -424,7 +424,7 @@
 }
 
 .shared-download-btn:hover {
-  background: #265a32;
+  background: #0b57b7;
 }
 
 .shared-status {
@@ -450,20 +450,20 @@
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #edf2ee;
+  background: #edf5ff;
   color: var(--text);
   flex-direction: column;
   text-decoration: none;
 }
 
 .shared-photo-card:hover {
-  border-color: #7dab88;
+  border-color: #79aee8;
 }
 
 .shared-photo-card img {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #edf2ee;
+  background: #edf5ff;
   object-fit: cover;
 }
 
@@ -481,4 +481,5 @@
   padding: 24px 10px 9px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
+
 

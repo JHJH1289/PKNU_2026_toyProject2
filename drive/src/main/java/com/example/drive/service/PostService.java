@@ -8,10 +8,12 @@ import com.example.drive.entity.Comment;
 import com.example.drive.entity.Post;
 import com.example.drive.entity.PostLike;
 import com.example.drive.entity.PostView;
+import com.example.drive.entity.User;
 import com.example.drive.repository.CommentRepository;
 import com.example.drive.repository.PostLikeRepository;
 import com.example.drive.repository.PostRepository;
 import com.example.drive.repository.PostViewRepository;
+import com.example.drive.repository.UserRepository;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -29,23 +31,26 @@ public class PostService {
     private final CommentRepository commentRepository;
     private final PostLikeRepository postLikeRepository;
     private final PostViewRepository postViewRepository;
+    private final UserRepository userRepository;
 
     public PostService(
             StorageService storageService,
             PostRepository postRepository,
             CommentRepository commentRepository,
             PostLikeRepository postLikeRepository,
-            PostViewRepository postViewRepository
+            PostViewRepository postViewRepository,
+            UserRepository userRepository
     ) {
         this.storageService = storageService;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.postLikeRepository = postLikeRepository;
         this.postViewRepository = postViewRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
-    public PostResponse createPost(String ownerId, String caption, String locationName, MultipartFile image) {
+    public PostResponse createPost(String ownerId, String caption, String locationName, String categoryTag, MultipartFile image) {
         if (image == null || image.isEmpty()) {
             throw new IllegalArgumentException("Image is required.");
         }
@@ -58,6 +63,7 @@ public class PostService {
                 storedFile.getSize(),
                 normalizeText(caption, 2000),
                 normalizeText(locationName, 120),
+                normalizeCategoryTag(categoryTag),
                 LocalDateTime.now()
         );
 
@@ -73,9 +79,15 @@ public class PostService {
 
     public List<PostResponse> getMyPosts(String ownerId) {
         String normalizedOwnerId = normalizeOwnerId(ownerId);
+        return getUserPosts(normalizedOwnerId, normalizedOwnerId);
+    }
+
+    public List<PostResponse> getUserPosts(String ownerId, String viewerId) {
+        String normalizedOwnerId = normalizeOwnerId(ownerId);
+        String normalizedViewerId = normalizeOwnerId(viewerId);
         return postRepository.findAllByOwnerIdOrderByCreatedAtDescIdDesc(normalizedOwnerId)
                 .stream()
-                .map(post -> toPostResponse(post, normalizedOwnerId))
+                .map(post -> toPostResponse(post, normalizedViewerId))
                 .toList();
     }
 
@@ -84,6 +96,11 @@ public class PostService {
     }
 
     public UserStatsResponse getMyStats(String ownerId) {
+        String normalizedOwnerId = normalizeOwnerId(ownerId);
+        return getUserStats(normalizedOwnerId);
+    }
+
+    public UserStatsResponse getUserStats(String ownerId) {
         String normalizedOwnerId = normalizeOwnerId(ownerId);
         long postCount = postRepository.findAllByOwnerIdOrderByCreatedAtDescIdDesc(normalizedOwnerId).size();
         long totalViewCount = postRepository.sumViewCountByOwnerId(normalizedOwnerId);
@@ -137,6 +154,21 @@ public class PostService {
     }
 
     @Transactional
+    public PostResponse updatePost(String ownerId, Long id, String caption, String locationName, String categoryTag, boolean admin) {
+        Post post = findPost(id);
+        if (!admin && !normalizeOwnerId(ownerId).equals(post.getOwnerId())) {
+            throw new IllegalArgumentException("Post not found.");
+        }
+
+        post.updateDetails(
+                normalizeText(caption, 2000),
+                normalizeText(locationName, 120),
+                normalizeCategoryTag(categoryTag)
+        );
+        return toPostResponse(post, ownerId);
+    }
+
+    @Transactional
     public void deletePost(String ownerId, Long id, boolean admin) {
         Post post = findPost(id);
         if (!admin && !normalizeOwnerId(ownerId).equals(post.getOwnerId())) {
@@ -161,8 +193,10 @@ public class PostService {
         return new PostResponse(
                 post.getId(),
                 post.getOwnerId(),
+                ownerProfileImageUrl(post.getOwnerId()),
                 post.getCaption(),
                 post.getLocationName(),
+                post.getCategoryTag(),
                 "/api/posts/" + post.getId() + "/image",
                 post.getCreatedAt(),
                 post.getViewCount(),
@@ -175,6 +209,14 @@ public class PostService {
     private Post findPost(Long id) {
         return postRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found."));
+    }
+
+    private String ownerProfileImageUrl(String ownerId) {
+        return userRepository.findByUsername(ownerId)
+                .map(User::getProfileImageStorageKey)
+                .filter(value -> value != null && !value.isBlank())
+                .map(storageKey -> "/api/users/" + ownerId + "/profile-image?v=" + Math.abs(storageKey.hashCode()))
+                .orElse("");
     }
 
     private String normalizeOwnerId(String ownerId) {
@@ -191,6 +233,11 @@ public class PostService {
 
         String normalized = value.trim();
         return normalized.length() > maxLength ? normalized.substring(0, maxLength) : normalized;
+    }
+
+    private String normalizeCategoryTag(String value) {
+        String normalized = normalizeText(value, 200);
+        return normalized == null ? "\uC5EC\uD589" : normalized;
     }
 
     public record PostFile(Resource resource, String contentType) {

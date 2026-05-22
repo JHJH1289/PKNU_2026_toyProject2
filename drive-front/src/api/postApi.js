@@ -28,7 +28,7 @@ async function request(url, options = {}) {
     localStorage.removeItem("username");
     localStorage.removeItem("role");
     window.location.reload();
-    throw new Error("로그인이 필요합니다.");
+    throw new Error("Login is required.");
   }
 
   if (!response.ok) {
@@ -52,33 +52,49 @@ async function request(url, options = {}) {
 }
 
 export async function fetchFeed() {
-  const result = await request("/api/posts");
-  return normalizePosts(result);
+  return normalizePosts(await request("/api/posts"));
 }
 
 export async function fetchMyPosts() {
-  const result = await request("/api/posts/me");
-  return normalizePosts(result);
+  return normalizePosts(await request("/api/posts/me"));
+}
+
+export async function fetchUserPosts(username) {
+  return normalizePosts(await request(`/api/posts/users/${encodeURIComponent(username)}`));
 }
 
 export async function fetchMyStats() {
   return request("/api/posts/me/stats");
 }
 
-export async function fetchAdminPosts() {
-  const result = await request("/api/posts/admin");
-  return normalizePosts(result);
+export async function fetchUserStats(username) {
+  return request(`/api/posts/users/${encodeURIComponent(username)}/stats`);
 }
 
-export async function createPost({ image, caption, locationName }) {
+export async function fetchAdminPosts() {
+  return normalizePosts(await request("/api/posts/admin"));
+}
+
+export async function createPost({ image, caption, locationName, categoryTag }) {
   const formData = new FormData();
   formData.append("image", image);
   if (caption?.trim()) formData.append("caption", caption.trim());
   if (locationName?.trim()) formData.append("locationName", locationName.trim());
+  if (categoryTag?.trim()) formData.append("categoryTag", categoryTag.trim());
 
   return normalizePost(await request("/api/posts", {
     method: "POST",
     body: formData,
+  }));
+}
+
+export async function updatePost(id, { caption, locationName, categoryTag }) {
+  return normalizePost(await request(`/api/posts/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ caption, locationName, categoryTag }),
   }));
 }
 
@@ -112,6 +128,8 @@ function normalizePost(post) {
   return post
     ? {
         ...post,
+        categoryTag: post.categoryTag || "여행",
+        ownerProfileImageUrl: normalizeImageUrl(post.ownerProfileImageUrl),
         imageUrl: normalizeImageUrl(post.imageUrl),
         comments: Array.isArray(post.comments) ? post.comments : [],
       }
