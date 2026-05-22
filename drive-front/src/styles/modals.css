@@ -247,10 +247,6 @@
   background: #e7efe8;
 }
 
-.exif-viewer-image {
-  background: #ffffff;
-}
-
 .photo-modal-info {
   display: grid;
   gap: 10px;
@@ -616,15 +612,6 @@
   padding: 40px 20px;
   color: #35523b;
   text-align: center;
-}
-
-.exif-preview-image {
-  display: block;
-  max-width: 100%;
-  max-height: 72vh;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: #ffffff;
 }
 
 .upload-fab {

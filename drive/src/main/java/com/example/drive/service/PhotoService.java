@@ -3,7 +3,6 @@ package com.example.drive.service;
 import com.example.drive.dto.DuplicatePhotoGroupResponse;
 import com.example.drive.dto.FolderResponse;
 import com.example.drive.dto.FolderShareResponse;
-import com.example.drive.dto.PhotoMetadata;
 import com.example.drive.dto.PhotoResponse;
 import com.example.drive.dto.PhotoUploadBatchResponse;
 import com.example.drive.dto.PhotoUploadItemResponse;
@@ -55,7 +54,6 @@ public class PhotoService {
     private final PhotoRepository photoRepository;
     private final PhotoFolderRepository photoFolderRepository;
     private final FolderShareLinkRepository folderShareLinkRepository;
-    private final PhotoMetadataService photoMetadataService;
     private final PhotoThumbnailService photoThumbnailService;
 
     public PhotoService(
@@ -63,14 +61,12 @@ public class PhotoService {
             PhotoRepository photoRepository,
             PhotoFolderRepository photoFolderRepository,
             FolderShareLinkRepository folderShareLinkRepository,
-            PhotoMetadataService photoMetadataService,
             PhotoThumbnailService photoThumbnailService
     ) {
         this.storageService = storageService;
         this.photoRepository = photoRepository;
         this.photoFolderRepository = photoFolderRepository;
         this.folderShareLinkRepository = folderShareLinkRepository;
-        this.photoMetadataService = photoMetadataService;
         this.photoThumbnailService = photoThumbnailService;
     }
 
@@ -575,7 +571,6 @@ public class PhotoService {
     }
 
     private PhotoUploadItemResponse uploadOne(String ownerId, String folderPath, String tags, MultipartFile file) {
-        PhotoMetadata metadata = photoMetadataService.extract(file);
         StoredFile storedFile = storageService.store(file);
 
         Photo photo = new Photo(
@@ -586,16 +581,18 @@ public class PhotoService {
                 storedFile.getSize(),
                 LocalDateTime.now(),
                 folderPath,
-                metadata.getWidth(),
-                metadata.getHeight(),
-                metadata.getTakenAt(),
-                metadata.getCameraMake(),
-                metadata.getCameraModel(),
-                metadata.getFocalLength(),
-                metadata.getFNumber(),
-                metadata.getExposureTime(),
-                metadata.getIso(),
-                metadata.getLensModel()
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
         );
         photo.changeTags(tags);
 
@@ -622,6 +619,8 @@ public class PhotoService {
                 savedPhoto.getExposureTime(),
                 savedPhoto.getIso(),
                 savedPhoto.getLensModel(),
+                savedPhoto.getGpsLatitude(),
+                savedPhoto.getGpsLongitude(),
                 splitTags(savedPhoto.getTags())
         );
     }
@@ -691,6 +690,8 @@ public class PhotoService {
                 photo.getExposureTime(),
                 photo.getIso(),
                 photo.getLensModel(),
+                photo.getGpsLatitude(),
+                photo.getGpsLongitude(),
                 splitTags(photo.getTags())
         );
     }
@@ -718,6 +719,8 @@ public class PhotoService {
                 photo.getExposureTime(),
                 photo.getIso(),
                 photo.getLensModel(),
+                photo.getGpsLatitude(),
+                photo.getGpsLongitude(),
                 splitTags(photo.getTags())
         );
     }

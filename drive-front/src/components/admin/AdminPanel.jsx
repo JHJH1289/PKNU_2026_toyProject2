@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { deleteAdminFolder, deleteAdminPhoto, fetchAdminFolders, fetchAdminPhotos } from "../../api/photoApi";
 import AuthImage from "../AuthImage";
-import ImageViewerModal from "../ImageViewerModal";
 import AdminFolderList from "./AdminFolderList";
 
 const TEXT = {
@@ -20,7 +19,6 @@ export default function AdminPanel({ username, onNotice }) {
   const [folders, setFolders] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState(null);
-  const [viewerIndex, setViewerIndex] = useState(null);
   const [status, setStatus] = useState("");
 
   const groupedFolders = useMemo(() => {
@@ -58,7 +56,6 @@ export default function AdminPanel({ username, onNotice }) {
     try {
       setStatus("");
       setSelectedFolder(folder);
-      setViewerIndex(null);
       const result = await fetchAdminPhotos();
       setPhotos(result.filter((photo) => (
         photo.ownerId === folder.ownerId && photo.folderPath === folder.folderPath
@@ -80,10 +77,6 @@ export default function AdminPanel({ username, onNotice }) {
           ))
         : [];
       setPhotos(nextPhotos);
-      setViewerIndex((currentIndex) => {
-        if (currentIndex === null || nextPhotos.length === 0) return null;
-        return Math.min(currentIndex, nextPhotos.length - 1);
-      });
       await loadFolders();
     } catch (error) {
       onNotice(`\uC0AC\uC9C4 \uC0AD\uC81C \uC2E4\uD328: ${error.message}`, "error");
@@ -93,18 +86,7 @@ export default function AdminPanel({ username, onNotice }) {
   function closeFolder() {
     setSelectedFolder(null);
     setPhotos([]);
-    setViewerIndex(null);
     setStatus("");
-  }
-
-  function showPrev() {
-    if (viewerIndex === null || photos.length === 0) return;
-    setViewerIndex((currentIndex) => (currentIndex === 0 ? photos.length - 1 : currentIndex - 1));
-  }
-
-  function showNext() {
-    if (viewerIndex === null || photos.length === 0) return;
-    setViewerIndex((currentIndex) => (currentIndex === photos.length - 1 ? 0 : currentIndex + 1));
   }
 
   useEffect(() => {
@@ -148,7 +130,7 @@ export default function AdminPanel({ username, onNotice }) {
           folder={selectedFolder}
           photos={photos}
           onBack={closeFolder}
-          onOpenPhoto={setViewerIndex}
+          onDeletePhoto={handleDeletePhoto}
         />
       ) : (
         <AdminFolderList
@@ -161,20 +143,11 @@ export default function AdminPanel({ username, onNotice }) {
         />
       )}
 
-      <ImageViewerModal
-        open={viewerIndex !== null}
-        photos={photos}
-        currentIndex={viewerIndex}
-        onClose={() => setViewerIndex(null)}
-        onPrev={showPrev}
-        onNext={showNext}
-        onDelete={handleDeletePhoto}
-      />
     </div>
   );
 }
 
-function AdminPhotoFolderView({ labels, folder, photos, onBack, onOpenPhoto }) {
+function AdminPhotoFolderView({ labels, folder, photos, onBack, onDeletePhoto }) {
   return (
     <div className="admin-photo-folder-view">
       <div className="admin-photo-folder-header">
@@ -192,19 +165,17 @@ function AdminPhotoFolderView({ labels, folder, photos, onBack, onOpenPhoto }) {
       ) : (
         <div className="admin-photo-grid">
           {photos.map((photo, index) => (
-            <button
-              type="button"
-              className="admin-photo-card"
-              key={photo.id}
-              onClick={() => onOpenPhoto(index)}
-            >
+            <div className="admin-photo-card" key={photo.id}>
               <AuthImage
                 className="admin-photo-image"
                 src={photo.thumbnailUrl || photo.imageUrl}
                 alt={photo.originalName}
               />
               <span>{photo.originalName}</span>
-            </button>
+              <button type="button" className="delete-btn" onClick={() => onDeletePhoto(photo.id)}>
+                {labels.delete}
+              </button>
+            </div>
           ))}
         </div>
       )}

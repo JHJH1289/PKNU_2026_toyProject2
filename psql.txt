@@ -1,22 +1,25 @@
--- Mini PC PostgreSQL setup for drive
--- Run as a PostgreSQL superuser, for example:
+-- Travel Share PostgreSQL setup
+-- Run as a PostgreSQL superuser:
 --   psql -U postgres -f psql.txt
 --
+-- This project now uses a new database so the existing drive_db used by
+-- another project is not deleted or modified.
+--
 -- Current app config expects:
---   database: drive_db
+--   database: travel_share_db
 --   username: postgres
 --   password: 12341234
 
--- 1. Create database if it does not exist.
-SELECT 'CREATE DATABASE drive_db'
+-- 1. Create the new database if it does not exist.
+SELECT 'CREATE DATABASE travel_share_db'
 WHERE NOT EXISTS (
-  SELECT FROM pg_database WHERE datname = 'drive_db'
+  SELECT FROM pg_database WHERE datname = 'travel_share_db'
 )\gexec
 
--- 2. Connect to the application database.
-\connect drive_db
+-- 2. Connect to the new application database.
+\connect travel_share_db
 
--- 3. Create users table.
+-- 3. Create User table.
 CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
   username VARCHAR(50) NOT NULL,
@@ -25,76 +28,75 @@ CREATE TABLE IF NOT EXISTS users (
   CONSTRAINT uk_users_username UNIQUE (username)
 );
 
--- 4. Create photo folders table.
-CREATE TABLE IF NOT EXISTS photo_folders (
+-- 4. Create Admin table.
+CREATE TABLE IF NOT EXISTS admins (
   id BIGSERIAL PRIMARY KEY,
-  owner_id VARCHAR(100) NOT NULL,
-  folder_path VARCHAR(300) NOT NULL,
+  username VARCHAR(50) NOT NULL,
   created_at TIMESTAMP NOT NULL,
-  updated_at TIMESTAMP,
-  sort_order INTEGER,
-  CONSTRAINT uk_photo_folders_owner_folder UNIQUE (owner_id, folder_path)
+  CONSTRAINT uk_admins_username UNIQUE (username)
 );
 
--- 5. Create photos table.
-CREATE TABLE IF NOT EXISTS photos (
+-- 5. Create Post table.
+CREATE TABLE IF NOT EXISTS posts (
   id BIGSERIAL PRIMARY KEY,
-  owner_id VARCHAR(100) NOT NULL,
-  original_name VARCHAR(255) NOT NULL,
-  storage_key VARCHAR(500) NOT NULL,
-  thumbnail_storage_key VARCHAR(500),
+  owner_id VARCHAR(50) NOT NULL,
+  image_storage_key VARCHAR(500) NOT NULL,
   content_type VARCHAR(255) NOT NULL,
   file_size BIGINT NOT NULL,
+  caption VARCHAR(2000),
+  location_name VARCHAR(120),
   created_at TIMESTAMP NOT NULL,
-  deleted_at TIMESTAMP,
-  folder_path VARCHAR(300) NOT NULL,
-  width INTEGER,
-  height INTEGER,
-  taken_at TIMESTAMP,
-  camera_make VARCHAR(100),
-  camera_model VARCHAR(200),
-  focal_length VARCHAR(50),
-  f_number VARCHAR(50),
-  exposure_time VARCHAR(50),
-  iso INTEGER,
-  lens_model VARCHAR(200),
-  tags VARCHAR(1000),
-  CONSTRAINT uk_photos_storage_key UNIQUE (storage_key)
+  view_count BIGINT NOT NULL DEFAULT 0
 );
 
--- 6. Migration safety for existing Mini PC databases.
--- If the database already existed before thumbnail support, this adds the new column.
-ALTER TABLE photos
-  ADD COLUMN IF NOT EXISTS thumbnail_storage_key VARCHAR(500);
+-- 6. Create comments table.
+CREATE TABLE IF NOT EXISTS comments (
+  id BIGSERIAL PRIMARY KEY,
+  post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  owner_id VARCHAR(50) NOT NULL,
+  content VARCHAR(1000) NOT NULL,
+  created_at TIMESTAMP NOT NULL
+);
 
-ALTER TABLE photos
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+-- 7. Create likes table.
+CREATE TABLE IF NOT EXISTS post_likes (
+  id BIGSERIAL PRIMARY KEY,
+  post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  owner_id VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  CONSTRAINT uk_post_likes_post_owner UNIQUE (post_id, owner_id)
+);
 
--- 7. Helpful indexes for gallery/folder queries.
-CREATE INDEX IF NOT EXISTS idx_photos_owner_folder
-  ON photos (owner_id, folder_path);
+-- 8. Create views table. One signed-in user counts only once per post.
+CREATE TABLE IF NOT EXISTS post_views (
+  id BIGSERIAL PRIMARY KEY,
+  post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  viewer_id VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  CONSTRAINT uk_post_views_post_viewer UNIQUE (post_id, viewer_id)
+);
 
-CREATE INDEX IF NOT EXISTS idx_photos_owner_folder_active
-  ON photos (owner_id, folder_path)
-  WHERE deleted_at IS NULL;
+-- 9. Helpful indexes for feed, my page, comments, likes, views, and admin mode.
+CREATE INDEX IF NOT EXISTS idx_posts_created_at
+  ON posts (created_at DESC, id DESC);
 
-CREATE INDEX IF NOT EXISTS idx_photos_owner_deleted
-  ON photos (owner_id, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_posts_owner_created_at
+  ON posts (owner_id, created_at DESC, id DESC);
 
-CREATE INDEX IF NOT EXISTS idx_photos_owner
-  ON photos (owner_id);
+CREATE INDEX IF NOT EXISTS idx_comments_post_created_at
+  ON comments (post_id, created_at, id);
 
-CREATE INDEX IF NOT EXISTS idx_photos_created_at
-  ON photos (created_at);
+CREATE INDEX IF NOT EXISTS idx_post_likes_post
+  ON post_likes (post_id);
 
-CREATE INDEX IF NOT EXISTS idx_photos_taken_at
-  ON photos (taken_at);
+CREATE INDEX IF NOT EXISTS idx_post_likes_owner
+  ON post_likes (owner_id);
 
-CREATE INDEX IF NOT EXISTS idx_photo_folders_owner
-  ON photo_folders (owner_id);
+CREATE INDEX IF NOT EXISTS idx_post_views_post
+  ON post_views (post_id);
 
-CREATE INDEX IF NOT EXISTS idx_photo_folders_owner_sort
-  ON photo_folders (owner_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_post_views_viewer
+  ON post_views (viewer_id);
 
--- 8. Verify created tables.
+-- 10. Verify created tables.
 \dt

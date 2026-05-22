@@ -23,6 +23,8 @@ public class PhotoUploadItemResponse {
     private final String exposureTime;
     private final Integer iso;
     private final String lensModel;
+    private final Double gpsLatitude;
+    private final Double gpsLongitude;
     private final List<String> tags;
 
     public PhotoUploadItemResponse(
@@ -44,6 +46,8 @@ public class PhotoUploadItemResponse {
             String exposureTime,
             Integer iso,
             String lensModel,
+            Double gpsLatitude,
+            Double gpsLongitude,
             List<String> tags
     ) {
         this.id = id;
@@ -64,6 +68,8 @@ public class PhotoUploadItemResponse {
         this.exposureTime = exposureTime;
         this.iso = iso;
         this.lensModel = lensModel;
+        this.gpsLatitude = gpsLatitude;
+        this.gpsLongitude = gpsLongitude;
         this.tags = tags;
     }
 
@@ -137,6 +143,14 @@ public class PhotoUploadItemResponse {
 
     public String getLensModel() {
         return lensModel;
+    }
+
+    public Double getGpsLatitude() {
+        return gpsLatitude;
+    }
+
+    public Double getGpsLongitude() {
+        return gpsLongitude;
     }
 
     public List<String> getTags() {

@@ -15,12 +15,12 @@ export default function LoginPage({ onLoginSuccess }) {
 
     try {
       if (!username.trim() || !password.trim()) {
-        throw new Error("아이디와 비밀번호를 입력하세요.");
+        throw new Error("아이디와 비밀번호를 입력해주세요.");
       }
 
       if (mode === "register") {
         await register(username.trim(), password);
-        setMessage("회원가입 완료. 이제 로그인하세요.");
+        setMessage("회원가입이 완료되었습니다. 이제 로그인하세요.");
         setMode("login");
       } else {
         const result = await login(username.trim(), password);
@@ -38,10 +38,10 @@ export default function LoginPage({ onLoginSuccess }) {
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1>사진 드라이브</h1>
-        <p className="auth-subtitle">로그인하면 사진 갤러리를 사용할 수 있습니다.</p>
+    <div className="auth-page travel-auth-page">
+      <div className="auth-card travel-auth-card">
+        <h1>Travelog</h1>
+        <p className="auth-subtitle">여행 사진을 올리고, 서로의 여정을 피드에서 만나보세요.</p>
 
         <div className="auth-tabs">
           <button

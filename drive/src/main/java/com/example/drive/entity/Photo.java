@@ -59,6 +59,9 @@ public class Photo {
     @Column(length = 200)
     private String lensModel;
 
+    private Double gpsLatitude;
+    private Double gpsLongitude;
+
     @Column(length = 1000)
     private String tags;
 
@@ -84,7 +87,9 @@ public class Photo {
             String fNumber,
             String exposureTime,
             Integer iso,
-            String lensModel
+            String lensModel,
+            Double gpsLatitude,
+            Double gpsLongitude
     ) {
         this.ownerId = ownerId;
         this.originalName = originalName;
@@ -103,6 +108,8 @@ public class Photo {
         this.exposureTime = exposureTime;
         this.iso = iso;
         this.lensModel = lensModel;
+        this.gpsLatitude = gpsLatitude;
+        this.gpsLongitude = gpsLongitude;
     }
 
     public Long getId() {
@@ -183,6 +190,14 @@ public class Photo {
 
     public String getLensModel() {
         return lensModel;
+    }
+
+    public Double getGpsLatitude() {
+        return gpsLatitude;
+    }
+
+    public Double getGpsLongitude() {
+        return gpsLongitude;
     }
 
     public String getTags() {
