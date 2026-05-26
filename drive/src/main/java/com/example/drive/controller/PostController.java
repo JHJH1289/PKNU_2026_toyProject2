@@ -38,9 +38,11 @@ public class PostController {
             @RequestParam("image") MultipartFile image,
             @RequestParam(value = "caption", required = false) String caption,
             @RequestParam(value = "locationName", required = false) String locationName,
+            @RequestParam(value = "latitude", required = false) Double latitude,
+            @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam(value = "categoryTag", required = false) String categoryTag
     ) {
-        return ResponseEntity.ok(postService.createPost(authentication.getName(), caption, locationName, categoryTag, image));
+        return ResponseEntity.ok(postService.createPost(authentication.getName(), caption, locationName, latitude, longitude, categoryTag, image));
     }
 
     @GetMapping("/me")
@@ -97,6 +99,8 @@ public class PostController {
                 id,
                 request.getCaption(),
                 request.getLocationName(),
+                request.getLatitude(),
+                request.getLongitude(),
                 request.getCategoryTag(),
                 isAdmin(authentication)
         ));

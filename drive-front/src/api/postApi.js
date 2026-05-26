@@ -87,6 +87,8 @@ export async function createPost({
   image,
   caption,
   locationName,
+  latitude,
+  longitude,
   categoryTag,
 }) {
   const formData = new FormData();
@@ -98,6 +100,11 @@ export async function createPost({
 
   if (locationName?.trim()) {
     formData.append("locationName", locationName.trim());
+  }
+
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    formData.append("latitude", String(latitude));
+    formData.append("longitude", String(longitude));
   }
 
   if (categoryTag?.trim()) {
@@ -112,14 +119,20 @@ export async function createPost({
   );
 }
 
-export async function updatePost(id, { caption, locationName, categoryTag }) {
+export async function updatePost(id, {
+  caption,
+  locationName,
+  latitude,
+  longitude,
+  categoryTag,
+}) {
   return normalizePost(
     await request(`/api/posts/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ caption, locationName, categoryTag }),
+      body: JSON.stringify({ caption, locationName, latitude, longitude, categoryTag }),
     }),
   );
 }

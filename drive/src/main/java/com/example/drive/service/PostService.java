@@ -50,7 +50,7 @@ public class PostService {
     }
 
     @Transactional
-    public PostResponse createPost(String ownerId, String caption, String locationName, String categoryTag, MultipartFile image) {
+    public PostResponse createPost(String ownerId, String caption, String locationName, Double latitude, Double longitude, String categoryTag, MultipartFile image) {
         if (image == null || image.isEmpty()) {
             throw new IllegalArgumentException("Image is required.");
         }
@@ -63,6 +63,8 @@ public class PostService {
                 storedFile.getSize(),
                 normalizeText(caption, 2000),
                 normalizeText(locationName, 120),
+                normalizeLatitude(latitude),
+                normalizeLongitude(longitude),
                 normalizeCategoryTag(categoryTag),
                 LocalDateTime.now()
         );
@@ -158,7 +160,7 @@ public class PostService {
     }
 
     @Transactional
-    public PostResponse updatePost(String ownerId, Long id, String caption, String locationName, String categoryTag, boolean admin) {
+    public PostResponse updatePost(String ownerId, Long id, String caption, String locationName, Double latitude, Double longitude, String categoryTag, boolean admin) {
         Post post = findPost(id);
         if (!admin && !normalizeOwnerId(ownerId).equals(post.getOwnerId())) {
             throw new IllegalArgumentException("Post not found.");
@@ -167,6 +169,8 @@ public class PostService {
         post.updateDetails(
                 normalizeText(caption, 2000),
                 normalizeText(locationName, 120),
+                normalizeLatitude(latitude),
+                normalizeLongitude(longitude),
                 normalizeCategoryTag(categoryTag)
         );
         return toPostResponse(post, ownerId);
@@ -200,6 +204,8 @@ public class PostService {
                 ownerProfileImageUrl(post.getOwnerId()),
                 post.getCaption(),
                 post.getLocationName(),
+                post.getLatitude(),
+                post.getLongitude(),
                 post.getCategoryTag(),
                 "/api/posts/" + post.getId() + "/image",
                 post.getCreatedAt(),
@@ -249,6 +255,30 @@ public class PostService {
     private String normalizeCategoryTag(String value) {
         String normalized = normalizeText(value, 200);
         return normalized == null ? "\uC5EC\uD589" : normalized;
+    }
+
+    private Double normalizeLatitude(Double value) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value < -90.0 || value > 90.0) {
+            throw new IllegalArgumentException("Latitude must be between -90 and 90.");
+        }
+
+        return value;
+    }
+
+    private Double normalizeLongitude(Double value) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value < -180.0 || value > 180.0) {
+            throw new IllegalArgumentException("Longitude must be between -180 and 180.");
+        }
+
+        return value;
     }
 
     public record PostFile(Resource resource, String contentType) {

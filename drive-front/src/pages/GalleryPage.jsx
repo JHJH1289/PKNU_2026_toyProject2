@@ -18,6 +18,7 @@ import {
   updatePost,
 } from "../api/postApi";
 import AuthImage from "../components/AuthImage";
+import Map from "../components/map.jsx";
 
 const TABS = {
   feed: "feed",
@@ -425,10 +426,7 @@ export default function GalleryPage({
         )}
 
         {tab === TABS.me && (
-          <section className="travel-map-slot">
-            <strong>Map API Area</strong>
-            <span>Reserved for travel route and visited place map.</span>
-          </section>
+          <Map posts={posts} />
         )}
 
         {status && <div className="travel-status">{status}</div>}
@@ -729,13 +727,34 @@ function PostCard({
 function PostEditForm({ post, onCancel, onSubmit }) {
   const [caption, setCaption] = useState(post.caption || "");
   const [locationName, setLocationName] = useState(post.locationName || "");
+  const [position, setPosition] = useState(() =>
+    Number.isFinite(post.latitude) && Number.isFinite(post.longitude)
+      ? { latitude: post.latitude, longitude: post.longitude }
+      : null,
+  );
   const [categoryTag, setCategoryTag] = useState(
     post.categoryTag || DEFAULT_CATEGORIES[0],
   );
 
   function handleSubmit(event) {
     event.preventDefault();
-    onSubmit({ caption, locationName, categoryTag });
+    onSubmit({
+      caption,
+      locationName,
+      latitude: position?.latitude,
+      longitude: position?.longitude,
+      categoryTag,
+    });
+  }
+
+  function handleLocationSelect(nextLocation) {
+    setPosition({
+      latitude: nextLocation.latitude,
+      longitude: nextLocation.longitude,
+    });
+    if (nextLocation.locationName) {
+      setLocationName(nextLocation.locationName);
+    }
   }
 
   return (
@@ -745,6 +764,12 @@ function PostEditForm({ post, onCancel, onSubmit }) {
         value={locationName}
         onChange={(event) => setLocationName(event.target.value)}
         placeholder="Place"
+      />
+      <Map
+        selectable
+        locationName={locationName}
+        selectedPosition={position}
+        onLocationSelect={handleLocationSelect}
       />
       <textarea
         value={caption}
@@ -766,6 +791,7 @@ function PostComposer({ onClose, onSubmit }) {
   const [image, setImage] = useState(null);
   const [caption, setCaption] = useState("");
   const [locationName, setLocationName] = useState("");
+  const [position, setPosition] = useState(null);
   const [categoryTag, setCategoryTag] = useState(DEFAULT_CATEGORIES[0]);
   const [previewUrl, setPreviewUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -785,10 +811,27 @@ function PostComposer({ onClose, onSubmit }) {
 
     try {
       setSubmitting(true);
-      await onSubmit({ image, caption, locationName, categoryTag });
+      await onSubmit({
+        image,
+        caption,
+        locationName,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+        categoryTag,
+      });
     } finally {
       setSubmitting(false);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+    }
+  }
+
+  function handleLocationSelect(nextLocation) {
+    setPosition({
+      latitude: nextLocation.latitude,
+      longitude: nextLocation.longitude,
+    });
+    if (nextLocation.locationName) {
+      setLocationName(nextLocation.locationName);
     }
   }
 
@@ -817,6 +860,12 @@ function PostComposer({ onClose, onSubmit }) {
           value={locationName}
           onChange={(event) => setLocationName(event.target.value)}
           placeholder="Place, e.g. Jeju Aewol"
+        />
+        <Map
+          selectable
+          locationName={locationName}
+          selectedPosition={position}
+          onLocationSelect={handleLocationSelect}
         />
         <textarea
           value={caption}
