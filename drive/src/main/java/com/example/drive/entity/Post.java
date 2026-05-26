@@ -31,6 +31,10 @@ public class Post {
     @Column(length = 120)
     private String locationName;
 
+    private Double latitude;
+
+    private Double longitude;
+
     @Column(length = 200)
     private String categoryTag;
 
@@ -46,6 +50,10 @@ public class Post {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostLike> likes = new ArrayList<>();
 
+    @OrderBy("sortOrder ASC, id ASC")
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PostLocation> locations = new ArrayList<>();
+
     protected Post() {
     }
 
@@ -56,6 +64,8 @@ public class Post {
             Long fileSize,
             String caption,
             String locationName,
+            Double latitude,
+            Double longitude,
             String categoryTag,
             LocalDateTime createdAt
     ) {
@@ -65,6 +75,8 @@ public class Post {
         this.fileSize = fileSize;
         this.caption = caption;
         this.locationName = locationName;
+        this.latitude = latitude;
+        this.longitude = longitude;
         this.categoryTag = categoryTag;
         this.createdAt = createdAt;
         this.viewCount = 0L;
@@ -77,19 +89,29 @@ public class Post {
     public Long getFileSize() { return fileSize; }
     public String getCaption() { return caption; }
     public String getLocationName() { return locationName; }
+    public Double getLatitude() { return latitude; }
+    public Double getLongitude() { return longitude; }
     public String getCategoryTag() { return categoryTag; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public long getViewCount() { return viewCount; }
     public List<Comment> getComments() { return comments; }
     public List<PostLike> getLikes() { return likes; }
+    public List<PostLocation> getLocations() { return locations; }
 
     public void increaseViewCount() {
         this.viewCount += 1L;
     }
 
-    public void updateDetails(String caption, String locationName, String categoryTag) {
+    public void updateDetails(String caption, String locationName, Double latitude, Double longitude, String categoryTag) {
         this.caption = caption;
         this.locationName = locationName;
+        this.latitude = latitude;
+        this.longitude = longitude;
         this.categoryTag = categoryTag;
+    }
+
+    public void replaceLocations(List<PostLocation> nextLocations) {
+        this.locations.clear();
+        this.locations.addAll(nextLocations);
     }
 }

@@ -87,6 +87,9 @@ export async function createPost({
   image,
   caption,
   locationName,
+  latitude,
+  longitude,
+  locations,
   categoryTag,
 }) {
   const formData = new FormData();
@@ -98,6 +101,15 @@ export async function createPost({
 
   if (locationName?.trim()) {
     formData.append("locationName", locationName.trim());
+  }
+
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    formData.append("latitude", String(latitude));
+    formData.append("longitude", String(longitude));
+  }
+
+  if (Array.isArray(locations) && locations.length > 0) {
+    formData.append("locations", JSON.stringify(locations));
   }
 
   if (categoryTag?.trim()) {
@@ -112,14 +124,21 @@ export async function createPost({
   );
 }
 
-export async function updatePost(id, { caption, locationName, categoryTag }) {
+export async function updatePost(id, {
+  caption,
+  locationName,
+  latitude,
+  longitude,
+  locations,
+  categoryTag,
+}) {
   return normalizePost(
     await request(`/api/posts/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ caption, locationName, categoryTag }),
+      body: JSON.stringify({ caption, locationName, latitude, longitude, locations, categoryTag }),
     }),
   );
 }
@@ -182,6 +201,30 @@ function normalizePost(post) {
         ownerProfileImageUrl: normalizeImageUrl(post.ownerProfileImageUrl),
         imageUrl: normalizeImageUrl(post.imageUrl),
         comments: Array.isArray(post.comments) ? post.comments : [],
+        locations: normalizeLocations(post),
       }
     : null;
+}
+
+function normalizeLocations(post) {
+  if (Array.isArray(post.locations) && post.locations.length > 0) {
+    return post.locations.filter(
+      (location) =>
+        Number.isFinite(location.latitude) &&
+        Number.isFinite(location.longitude),
+    );
+  }
+
+  if (Number.isFinite(post.latitude) && Number.isFinite(post.longitude)) {
+    return [
+      {
+        id: null,
+        locationName: post.locationName || "Place",
+        latitude: post.latitude,
+        longitude: post.longitude,
+      },
+    ];
+  }
+
+  return [];
 }

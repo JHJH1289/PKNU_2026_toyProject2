@@ -9,12 +9,15 @@ public record PostResponse(
         String ownerProfileImageUrl,
         String caption,
         String locationName,
+        Double latitude,
+        Double longitude,
         String categoryTag,
         String imageUrl,
         LocalDateTime createdAt,
         long viewCount,
         long likeCount,
         boolean likedByMe,
+        List<PostLocationResponse> locations,
         List<CommentResponse> comments
 ) {
 }

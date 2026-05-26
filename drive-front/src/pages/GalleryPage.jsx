@@ -20,6 +20,7 @@ import {
   updatePostComment,
 } from "../api/postApi";
 import AuthImage from "../components/AuthImage";
+import Map from "../components/map.jsx";
 
 const TABS = {
   feed: "feed",
@@ -87,6 +88,10 @@ export default function GalleryPage({
     }
 
     setComposerOpen(true);
+  }
+
+  function closeComposer() {
+    setComposerOpen(false);
   }
 
   async function load(nextTab = tab) {
@@ -323,6 +328,18 @@ export default function GalleryPage({
     }
   }, [username]);
 
+  useEffect(() => {
+    if (!composerOpen) return;
+
+    window.history.pushState({ travelComposerOpen: true }, "");
+    function handlePopState() {
+      setComposerOpen(false);
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [composerOpen]);
+
   return (
     <div className="travel-app">
       {sidebarOpen && (
@@ -455,10 +472,7 @@ export default function GalleryPage({
         )}
 
         {tab === TABS.me && (
-          <section className="travel-map-slot">
-            <strong>Map API Area</strong>
-            <span>Reserved for travel route and visited place map.</span>
-          </section>
+          <Map posts={posts} />
         )}
 
         {status && <div className="travel-status">{status}</div>}
@@ -492,7 +506,7 @@ export default function GalleryPage({
 
       {composerOpen && (
         <PostComposer
-          onClose={() => setComposerOpen(false)}
+          onClose={closeComposer}
           onSubmit={handleCreatePost}
         />
       )}
@@ -821,23 +835,42 @@ function CommentItem({ comment, canManage, onUpdate, onDelete }) {
 
 function PostEditForm({ post, onCancel, onSubmit }) {
   const [caption, setCaption] = useState(post.caption || "");
-  const [locationName, setLocationName] = useState(post.locationName || "");
+  const [locations, setLocations] = useState(() =>
+    Array.isArray(post.locations) ? post.locations : [],
+  );
   const [categoryTag, setCategoryTag] = useState(
     post.categoryTag || DEFAULT_CATEGORIES[0],
   );
 
   function handleSubmit(event) {
     event.preventDefault();
-    onSubmit({ caption, locationName, categoryTag });
+    const primaryLocation = locations[0] || null;
+    onSubmit({
+      caption,
+      locationName: primaryLocation?.locationName || "",
+      latitude: primaryLocation?.latitude,
+      longitude: primaryLocation?.longitude,
+      locations,
+      categoryTag,
+    });
+  }
+
+  function handleLocationSelect(nextLocation) {
+    setLocations((current) => [...current, nextLocation]);
+  }
+
+  function handleLocationRemove(index) {
+    setLocations((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
 
   return (
     <form className="travel-edit-form" onSubmit={handleSubmit}>
       <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
-      <input
-        value={locationName}
-        onChange={(event) => setLocationName(event.target.value)}
-        placeholder="Place"
+      <Map
+        selectable
+        selectedLocations={locations}
+        onLocationSelect={handleLocationSelect}
+        onLocationRemove={handleLocationRemove}
       />
       <textarea
         value={caption}
@@ -858,7 +891,7 @@ function PostEditForm({ post, onCancel, onSubmit }) {
 function PostComposer({ onClose, onSubmit }) {
   const [image, setImage] = useState(null);
   const [caption, setCaption] = useState("");
-  const [locationName, setLocationName] = useState("");
+  const [locations, setLocations] = useState([]);
   const [categoryTag, setCategoryTag] = useState(DEFAULT_CATEGORIES[0]);
   const [previewUrl, setPreviewUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -878,11 +911,34 @@ function PostComposer({ onClose, onSubmit }) {
 
     try {
       setSubmitting(true);
-      await onSubmit({ image, caption, locationName, categoryTag });
+      const primaryLocation = locations[0] || null;
+      await onSubmit({
+        image,
+        caption,
+        locationName: primaryLocation?.locationName || "",
+        latitude: primaryLocation?.latitude,
+        longitude: primaryLocation?.longitude,
+        locations,
+        categoryTag,
+      });
     } finally {
       setSubmitting(false);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  function handleLocationSelect(nextLocation) {
+    setLocations((current) => [...current, nextLocation]);
+  }
+
+  function handleLocationRemove(index) {
+    setLocations((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
 
   return (
@@ -905,11 +961,11 @@ function PostComposer({ onClose, onSubmit }) {
         )}
 
         <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
-        <input
-          type="text"
-          value={locationName}
-          onChange={(event) => setLocationName(event.target.value)}
-          placeholder="Place, e.g. Jeju Aewol"
+        <Map
+          selectable
+          selectedLocations={locations}
+          onLocationSelect={handleLocationSelect}
+          onLocationRemove={handleLocationRemove}
         />
         <textarea
           value={caption}
