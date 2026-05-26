@@ -17,6 +17,7 @@ public record PostResponse(
         long viewCount,
         long likeCount,
         boolean likedByMe,
+        List<PostLocationResponse> locations,
         List<CommentResponse> comments
 ) {
 }

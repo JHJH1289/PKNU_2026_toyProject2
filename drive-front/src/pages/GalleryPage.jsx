@@ -742,11 +742,8 @@ function PostCard({
 
 function PostEditForm({ post, onCancel, onSubmit }) {
   const [caption, setCaption] = useState(post.caption || "");
-  const [locationName, setLocationName] = useState(post.locationName || "");
-  const [position, setPosition] = useState(() =>
-    Number.isFinite(post.latitude) && Number.isFinite(post.longitude)
-      ? { latitude: post.latitude, longitude: post.longitude }
-      : null,
+  const [locations, setLocations] = useState(() =>
+    Array.isArray(post.locations) ? post.locations : [],
   );
   const [categoryTag, setCategoryTag] = useState(
     post.categoryTag || DEFAULT_CATEGORIES[0],
@@ -754,38 +751,33 @@ function PostEditForm({ post, onCancel, onSubmit }) {
 
   function handleSubmit(event) {
     event.preventDefault();
+    const primaryLocation = locations[0] || null;
     onSubmit({
       caption,
-      locationName,
-      latitude: position?.latitude,
-      longitude: position?.longitude,
+      locationName: primaryLocation?.locationName || "",
+      latitude: primaryLocation?.latitude,
+      longitude: primaryLocation?.longitude,
+      locations,
       categoryTag,
     });
   }
 
   function handleLocationSelect(nextLocation) {
-    setPosition({
-      latitude: nextLocation.latitude,
-      longitude: nextLocation.longitude,
-    });
-    if (nextLocation.locationName) {
-      setLocationName(nextLocation.locationName);
-    }
+    setLocations((current) => [...current, nextLocation]);
+  }
+
+  function handleLocationRemove(index) {
+    setLocations((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
 
   return (
     <form className="travel-edit-form" onSubmit={handleSubmit}>
       <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
-      <input
-        value={locationName}
-        onChange={(event) => setLocationName(event.target.value)}
-        placeholder="Place"
-      />
       <Map
         selectable
-        locationName={locationName}
-        selectedPosition={position}
+        selectedLocations={locations}
         onLocationSelect={handleLocationSelect}
+        onLocationRemove={handleLocationRemove}
       />
       <textarea
         value={caption}
@@ -806,8 +798,7 @@ function PostEditForm({ post, onCancel, onSubmit }) {
 function PostComposer({ onClose, onSubmit }) {
   const [image, setImage] = useState(null);
   const [caption, setCaption] = useState("");
-  const [locationName, setLocationName] = useState("");
-  const [position, setPosition] = useState(null);
+  const [locations, setLocations] = useState([]);
   const [categoryTag, setCategoryTag] = useState(DEFAULT_CATEGORIES[0]);
   const [previewUrl, setPreviewUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -827,12 +818,14 @@ function PostComposer({ onClose, onSubmit }) {
 
     try {
       setSubmitting(true);
+      const primaryLocation = locations[0] || null;
       await onSubmit({
         image,
         caption,
-        locationName,
-        latitude: position?.latitude,
-        longitude: position?.longitude,
+        locationName: primaryLocation?.locationName || "",
+        latitude: primaryLocation?.latitude,
+        longitude: primaryLocation?.longitude,
+        locations,
         categoryTag,
       });
     } finally {
@@ -848,13 +841,11 @@ function PostComposer({ onClose, onSubmit }) {
   }, [previewUrl]);
 
   function handleLocationSelect(nextLocation) {
-    setPosition({
-      latitude: nextLocation.latitude,
-      longitude: nextLocation.longitude,
-    });
-    if (nextLocation.locationName) {
-      setLocationName(nextLocation.locationName);
-    }
+    setLocations((current) => [...current, nextLocation]);
+  }
+
+  function handleLocationRemove(index) {
+    setLocations((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
 
   return (
@@ -877,17 +868,11 @@ function PostComposer({ onClose, onSubmit }) {
         )}
 
         <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
-        <input
-          type="text"
-          value={locationName}
-          onChange={(event) => setLocationName(event.target.value)}
-          placeholder="Place, e.g. Jeju Aewol"
-        />
         <Map
           selectable
-          locationName={locationName}
-          selectedPosition={position}
+          selectedLocations={locations}
           onLocationSelect={handleLocationSelect}
+          onLocationRemove={handleLocationRemove}
         />
         <textarea
           value={caption}

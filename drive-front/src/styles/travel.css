@@ -620,6 +620,22 @@
   gap: 10px;
 }
 
+.travel-map-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: min(100%, 320px);
+}
+
+.travel-map-search input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
 .travel-map-head button {
   border: 0;
   border-radius: 8px;
@@ -662,6 +678,36 @@
 .travel-map-picker small {
   color: var(--travel-muted);
   font-size: 12px;
+}
+
+.travel-location-list {
+  display: grid;
+  gap: 7px;
+}
+
+.travel-location-list span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--travel-ink);
+  font-size: 13px;
+}
+
+.travel-location-list span button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 6px 8px;
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .travel-map-info {

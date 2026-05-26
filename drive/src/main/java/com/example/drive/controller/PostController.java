@@ -1,9 +1,12 @@
 package com.example.drive.controller;
 
 import com.example.drive.dto.CommentCreateRequest;
+import com.example.drive.dto.PostLocationRequest;
 import com.example.drive.dto.PostResponse;
 import com.example.drive.dto.PostUpdateRequest;
 import com.example.drive.dto.UserStatsResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.drive.service.PostService;
 import com.example.drive.service.PostService.PostFile;
 import org.springframework.core.io.Resource;
@@ -22,9 +25,11 @@ import java.util.Map;
 public class PostController {
 
     private final PostService postService;
+    private final ObjectMapper objectMapper;
 
-    public PostController(PostService postService) {
+    public PostController(PostService postService, ObjectMapper objectMapper) {
         this.postService = postService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping
@@ -40,9 +45,19 @@ public class PostController {
             @RequestParam(value = "locationName", required = false) String locationName,
             @RequestParam(value = "latitude", required = false) Double latitude,
             @RequestParam(value = "longitude", required = false) Double longitude,
+            @RequestParam(value = "locations", required = false) String locations,
             @RequestParam(value = "categoryTag", required = false) String categoryTag
     ) {
-        return ResponseEntity.ok(postService.createPost(authentication.getName(), caption, locationName, latitude, longitude, categoryTag, image));
+        return ResponseEntity.ok(postService.createPost(
+                authentication.getName(),
+                caption,
+                locationName,
+                latitude,
+                longitude,
+                parseLocations(locations),
+                categoryTag,
+                image
+        ));
     }
 
     @GetMapping("/me")
@@ -101,6 +116,7 @@ public class PostController {
                 request.getLocationName(),
                 request.getLatitude(),
                 request.getLongitude(),
+                request.getLocations(),
                 request.getCategoryTag(),
                 isAdmin(authentication)
         ));
@@ -135,5 +151,17 @@ public class PostController {
         return authentication != null && authentication.getAuthorities()
                 .stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+    }
+
+    private List<PostLocationRequest> parseLocations(String locations) {
+        if (locations == null || locations.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            return objectMapper.readValue(locations, new TypeReference<>() {});
+        } catch (Exception error) {
+            throw new IllegalArgumentException("Invalid post locations.");
+        }
     }
 }

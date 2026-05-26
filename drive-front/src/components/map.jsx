@@ -56,8 +56,10 @@ export default function Map({
   posts = [],
   selectable = false,
   selectedPosition = null,
+  selectedLocations = [],
   locationName = "",
   onLocationSelect,
+  onLocationRemove,
 }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -68,9 +70,22 @@ export default function Map({
   const infoWindowRef = useRef(null);
   const [maps, setMaps] = useState(null);
   const [status, setStatus] = useState("");
+  const [searchText, setSearchText] = useState("");
 
   const mappedPosts = useMemo(
-    () => posts.filter((post) => hasCoordinates(post)),
+    () =>
+      posts.flatMap((post) => {
+        if (Array.isArray(post.locations) && post.locations.length > 0) {
+          return post.locations
+            .filter((location) => hasCoordinates(location))
+            .map((location) => ({
+              ...location,
+              caption: post.caption,
+            }));
+        }
+
+        return hasCoordinates(post) ? [post] : [];
+      }),
     [posts],
   );
 
@@ -110,7 +125,9 @@ export default function Map({
       fullscreenControl: false,
     });
     geocoderRef.current = new maps.Geocoder();
-    placesServiceRef.current = new maps.places.PlacesService(mapRef.current);
+    if (maps.places?.PlacesService) {
+      placesServiceRef.current = new maps.places.PlacesService(mapRef.current);
+    }
     infoWindowRef.current = new maps.InfoWindow();
   }, [mappedPosts, maps, selectedPosition]);
 
@@ -147,25 +164,31 @@ export default function Map({
       markersRef.current.push(marker);
     });
 
-    if (hasCoordinates(selectedPosition)) {
-      const selected = toLatLng(selectedPosition);
+    const activeLocations = selectedLocations.length > 0
+      ? selectedLocations
+      : hasCoordinates(selectedPosition)
+        ? [selectedPosition]
+        : [];
+
+    activeLocations.forEach((selectedLocation) => {
+      const selected = toLatLng(selectedLocation);
       points.push(selected);
       bounds.extend(selected);
       markersRef.current.push(
         new maps.Marker({
           map: mapRef.current,
           position: selected,
-          title: locationName || "Selected place",
+          title: selectedLocation.locationName || locationName || "Selected place",
         }),
       );
-    }
+    });
 
     if (points.length > 1) {
       mapRef.current.fitBounds(bounds);
     } else if (points.length === 1) {
       mapRef.current.setCenter(points[0]);
     }
-  }, [locationName, mappedPosts, maps, selectedPosition]);
+  }, [locationName, mappedPosts, maps, selectedLocations, selectedPosition]);
 
   useEffect(() => {
     if (!maps || !mapRef.current) return;
@@ -183,7 +206,7 @@ export default function Map({
           onLocationSelect?.({
             latitude: point.lat(),
             longitude: point.lng(),
-            locationName,
+            locationName: searchText.trim() || locationName || "Pinned place",
           });
         },
       );
@@ -198,12 +221,16 @@ export default function Map({
   }, [locationName, maps, onLocationSelect, selectable]);
 
   function searchLocation() {
-    if (!locationName.trim()) return;
+    const query = searchText.trim();
+    if (!query) return;
+    setStatus("Searching place...");
 
     if (placesServiceRef.current) {
       placesServiceRef.current.textSearch(
         {
-          query: locationName.trim(),
+          query,
+          location: toLatLng(DEFAULT_CENTER),
+          radius: 250000,
           region: "KR",
         },
         (results, responseStatus) => {
@@ -214,28 +241,33 @@ export default function Map({
             onLocationSelect?.({
               latitude: point.lat(),
               longitude: point.lng(),
-              locationName: result.name || result.formatted_address || locationName,
+              locationName: result.name || result.formatted_address || query,
             });
+            setSearchText("");
             return;
           }
 
-          searchAddress();
+          searchAddress(query, responseStatus);
         },
       );
       return;
     }
 
-    searchAddress();
+    searchAddress(query);
   }
 
-  function searchAddress() {
+  function searchAddress(query, placeStatus = "") {
     if (!geocoderRef.current) return;
 
     geocoderRef.current.geocode(
-      { address: locationName.trim(), region: "KR" },
+      { address: query, region: "KR" },
       (results, responseStatus) => {
         if (responseStatus !== "OK" || !results?.[0]) {
-          setStatus("Place search failed.");
+          setStatus(
+            placeStatus
+              ? `Place search failed. Places: ${placeStatus}, Geocoder: ${responseStatus}.`
+              : `Place search failed. Geocoder: ${responseStatus}.`,
+          );
           return;
         }
 
@@ -245,8 +277,9 @@ export default function Map({
         onLocationSelect?.({
           latitude: point.lat(),
           longitude: point.lng(),
-          locationName: result.formatted_address || locationName,
+          locationName: result.formatted_address || query,
         });
+        setSearchText("");
       },
     );
   }
@@ -256,13 +289,27 @@ export default function Map({
       <div className="travel-map-head">
         <strong>Map API Area</strong>
         {selectable && (
-          <button
-            type="button"
-            onClick={searchLocation}
-            disabled={!maps || !locationName.trim()}
-          >
-            Search
-          </button>
+          <div className="travel-map-search">
+            <input
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  searchLocation();
+                }
+              }}
+              placeholder="Search place"
+            />
+            <button
+              type="button"
+              onClick={searchLocation}
+              disabled={!maps || !searchText.trim()}
+            >
+              Search
+            </button>
+          </div>
         )}
       </div>
       <div className="travel-map-canvas" ref={mapElementRef}>
@@ -272,11 +319,20 @@ export default function Map({
         )}
       </div>
       {selectable && (
-        <small>
-          {hasCoordinates(selectedPosition)
-            ? `${selectedPosition.latitude.toFixed(6)}, ${selectedPosition.longitude.toFixed(6)}`
-            : "Search a place or click the map."}
-        </small>
+        <div className="travel-location-list">
+          {selectedLocations.length === 0 ? (
+            <small>Search places or click the map.</small>
+          ) : (
+            selectedLocations.map((location, index) => (
+              <span key={`${location.locationName}-${location.latitude}-${location.longitude}`}>
+                {location.locationName || `Place ${index + 1}`}
+                <button type="button" onClick={() => onLocationRemove?.(index)}>
+                  Remove
+                </button>
+              </span>
+            ))
+          )}
+        </div>
       )}
     </section>
   );

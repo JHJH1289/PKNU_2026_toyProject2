@@ -50,6 +50,10 @@ public class Post {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostLike> likes = new ArrayList<>();
 
+    @OrderBy("sortOrder ASC, id ASC")
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PostLocation> locations = new ArrayList<>();
+
     protected Post() {
     }
 
@@ -92,6 +96,7 @@ public class Post {
     public long getViewCount() { return viewCount; }
     public List<Comment> getComments() { return comments; }
     public List<PostLike> getLikes() { return likes; }
+    public List<PostLocation> getLocations() { return locations; }
 
     public void increaseViewCount() {
         this.viewCount += 1L;
@@ -103,5 +108,10 @@ public class Post {
         this.latitude = latitude;
         this.longitude = longitude;
         this.categoryTag = categoryTag;
+    }
+
+    public void replaceLocations(List<PostLocation> nextLocations) {
+        this.locations.clear();
+        this.locations.addAll(nextLocations);
     }
 }
