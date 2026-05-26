@@ -71,6 +71,7 @@ export default function Map({
   const [maps, setMaps] = useState(null);
   const [status, setStatus] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [currentPosition, setCurrentPosition] = useState(null);
 
   const mappedPosts = useMemo(
     () =>
@@ -111,11 +112,31 @@ export default function Map({
   }, []);
 
   useEffect(() => {
+    if (!selectable || !navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCurrentPosition({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          locationName: "Current location",
+        });
+      },
+      () => {},
+      {
+        enableHighAccuracy: true,
+        maximumAge: 60000,
+        timeout: 8000,
+      },
+    );
+  }, [selectable]);
+
+  useEffect(() => {
     if (!maps || !mapElementRef.current || mapRef.current) return;
 
     const center = hasCoordinates(selectedPosition)
       ? selectedPosition
-      : mappedPosts[0] || DEFAULT_CENTER;
+      : currentPosition || mappedPosts[0] || DEFAULT_CENTER;
 
     mapRef.current = new maps.Map(mapElementRef.current, {
       center: toLatLng(center),
@@ -129,7 +150,7 @@ export default function Map({
       placesServiceRef.current = new maps.places.PlacesService(mapRef.current);
     }
     infoWindowRef.current = new maps.InfoWindow();
-  }, [mappedPosts, maps, selectedPosition]);
+  }, [currentPosition, mappedPosts, maps, selectedPosition]);
 
   useEffect(() => {
     if (!maps || !mapRef.current) return;
@@ -183,12 +204,26 @@ export default function Map({
       );
     });
 
+    if (selectable && activeLocations.length === 0 && hasCoordinates(currentPosition)) {
+      const current = toLatLng(currentPosition);
+      points.push(current);
+      bounds.extend(current);
+      markersRef.current.push(
+        new maps.Marker({
+          map: mapRef.current,
+          position: current,
+          title: "Current location",
+          label: "You",
+        }),
+      );
+    }
+
     if (points.length > 1) {
       mapRef.current.fitBounds(bounds);
     } else if (points.length === 1) {
       mapRef.current.setCenter(points[0]);
     }
-  }, [locationName, mappedPosts, maps, selectedLocations, selectedPosition]);
+  }, [currentPosition, locationName, mappedPosts, maps, selectable, selectedLocations, selectedPosition]);
 
   useEffect(() => {
     if (!maps || !mapRef.current) return;
@@ -218,7 +253,7 @@ export default function Map({
         clickListenerRef.current = null;
       }
     };
-  }, [locationName, maps, onLocationSelect, selectable]);
+  }, [locationName, maps, onLocationSelect, searchText, selectable]);
 
   function searchLocation() {
     const query = searchText.trim();
@@ -229,7 +264,7 @@ export default function Map({
       placesServiceRef.current.textSearch(
         {
           query,
-          location: toLatLng(DEFAULT_CENTER),
+          location: toLatLng(currentPosition || DEFAULT_CENTER),
           radius: 250000,
           region: "KR",
         },
