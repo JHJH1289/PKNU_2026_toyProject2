@@ -8,6 +8,7 @@ import {
   addPostComment,
   createPost,
   deletePost,
+  deletePostComment,
   fetchAdminPosts,
   fetchFeed,
   fetchMyPosts,
@@ -16,6 +17,7 @@ import {
   fetchUserStats,
   togglePostLike,
   updatePost,
+  updatePostComment,
 } from "../api/postApi";
 import AuthImage from "../components/AuthImage";
 
@@ -244,6 +246,34 @@ export default function GalleryPage({
     }
   }
 
+  async function handleUpdateComment(postId, commentId, content) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
+    try {
+      replacePost(await updatePostComment(postId, commentId, content));
+    } catch (error) {
+      setStatus(error.message || "Failed to update comment.");
+    }
+  }
+
+  async function handleDeleteComment(postId, commentId) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
+    if (!window.confirm("Delete this comment?")) return;
+
+    try {
+      replacePost(await deletePostComment(postId, commentId));
+    } catch (error) {
+      setStatus(error.message || "Failed to delete comment.");
+    }
+  }
+
   async function handleDelete(postId) {
     if (!isLoggedIn) {
       requireLogin();
@@ -450,6 +480,8 @@ export default function GalleryPage({
               canDelete={isAdmin || (isLoggedIn && post.ownerId === username)}
               onLike={handleLike}
               onComment={handleComment}
+              onUpdateComment={handleUpdateComment}
+              onDeleteComment={handleDeleteComment}
               onDelete={handleDelete}
               onUpdate={handleUpdatePost}
               onOpenProfile={openUserProfile}
@@ -558,6 +590,8 @@ function PostCard({
   canDelete,
   onLike,
   onComment,
+  onUpdateComment,
+  onDeleteComment,
   onDelete,
   onUpdate,
   onOpenProfile,
@@ -696,9 +730,15 @@ function PostCard({
                 <p className="travel-muted">No comments yet.</p>
               ) : (
                 post.comments.map((item) => (
-                  <p key={item.id}>
-                    <strong>{item.ownerId}</strong> {item.content}
-                  </p>
+                  <CommentItem
+                    key={item.id}
+                    comment={item}
+                    canManage={isLoggedIn && item.ownerId === currentUsername}
+                    onUpdate={(content) =>
+                      onUpdateComment(post.id, item.id, content)
+                    }
+                    onDelete={() => onDeleteComment(post.id, item.id)}
+                  />
                 ))
               )}
             </div>
@@ -723,6 +763,59 @@ function PostCard({
         )}
       </div>
     </article>
+  );
+}
+
+function CommentItem({ comment, canManage, onUpdate, onDelete }) {
+  const [editing, setEditing] = useState(false);
+  const [content, setContent] = useState(comment.content || "");
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!content.trim()) return;
+    await onUpdate(content.trim());
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <form className="travel-comment-edit-form" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          autoFocus
+        />
+        <button type="submit">Save</button>
+        <button
+          type="button"
+          onClick={() => {
+            setContent(comment.content || "");
+            setEditing(false);
+          }}
+        >
+          Cancel
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="travel-comment-item">
+      <p>
+        <strong>{comment.ownerId}</strong> {comment.content}
+      </p>
+      {canManage && (
+        <div className="travel-comment-actions">
+          <button type="button" onClick={() => setEditing(true)}>
+            Edit
+          </button>
+          <button type="button" className="danger" onClick={onDelete}>
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

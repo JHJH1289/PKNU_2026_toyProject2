@@ -144,6 +144,26 @@ export async function addPostComment(id, content) {
   );
 }
 
+export async function updatePostComment(postId, commentId, content) {
+  return normalizePost(
+    await request(`/api/posts/${postId}/comments/${commentId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    }),
+  );
+}
+
+export async function deletePostComment(postId, commentId) {
+  return normalizePost(
+    await request(`/api/posts/${postId}/comments/${commentId}`, {
+      method: "DELETE",
+    }),
+  );
+}
+
 export async function deletePost(id) {
   return request(`/api/posts/${id}`, {
     method: "DELETE",

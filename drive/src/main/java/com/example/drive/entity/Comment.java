@@ -39,4 +39,8 @@ public class Comment {
     public String getOwnerId() { return ownerId; }
     public String getContent() { return content; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public void updateContent(String content) {
+        this.content = content;
+    }
 }

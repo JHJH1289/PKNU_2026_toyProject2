@@ -449,6 +449,46 @@
   line-height: 1.45;
 }
 
+.travel-comment-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.travel-comment-actions,
+.travel-comment-edit-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.travel-comment-actions button,
+.travel-comment-edit-form button {
+  padding: 0;
+  background: transparent;
+  color: var(--travel-blue);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.travel-comment-actions .danger {
+  color: #d33b3b;
+}
+
+.travel-comment-edit-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.travel-comment-edit-form input {
+  width: 100%;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
 .travel-muted {
   color: var(--travel-muted);
 }
@@ -837,4 +877,3 @@
     max-height: 68vh;
   }
 }
-

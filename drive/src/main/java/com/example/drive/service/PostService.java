@@ -133,6 +133,38 @@ public class PostService {
     }
 
     @Transactional
+    public PostResponse updateComment(String ownerId, Long postId, Long commentId, String content) {
+        String normalizedOwnerId = normalizeOwnerId(ownerId);
+        String normalizedContent = normalizeText(content, 1000);
+        if (normalizedContent == null || normalizedContent.isBlank()) {
+            throw new IllegalArgumentException("Comment is required.");
+        }
+
+        Post post = findPost(postId);
+        Comment comment = findComment(postId, commentId);
+        if (!normalizedOwnerId.equals(comment.getOwnerId())) {
+            throw new IllegalArgumentException("Comment not found.");
+        }
+
+        comment.updateContent(normalizedContent);
+        return toPostResponse(post, normalizedOwnerId);
+    }
+
+    @Transactional
+    public PostResponse deleteComment(String ownerId, Long postId, Long commentId) {
+        String normalizedOwnerId = normalizeOwnerId(ownerId);
+        Post post = findPost(postId);
+        Comment comment = findComment(postId, commentId);
+        if (!normalizedOwnerId.equals(comment.getOwnerId())) {
+            throw new IllegalArgumentException("Comment not found.");
+        }
+
+        commentRepository.delete(comment);
+        commentRepository.flush();
+        return toPostResponse(post, normalizedOwnerId);
+    }
+
+    @Transactional
     public PostFile getPostImage(Long id, String viewerId) {
         Post post = findPost(id);
         registerView(post, viewerId);
@@ -213,6 +245,15 @@ public class PostService {
     private Post findPost(Long id) {
         return postRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found."));
+    }
+
+    private Comment findComment(Long postId, Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found."));
+        if (!comment.getPost().getId().equals(postId)) {
+            throw new IllegalArgumentException("Comment not found.");
+        }
+        return comment;
     }
 
     private String ownerProfileImageUrl(String ownerId) {

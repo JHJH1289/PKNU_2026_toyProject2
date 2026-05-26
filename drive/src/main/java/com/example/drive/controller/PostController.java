@@ -86,6 +86,25 @@ public class PostController {
         return ResponseEntity.ok(postService.addComment(authentication.getName(), id, request.getContent()));
     }
 
+    @PutMapping("/{postId}/comments/{commentId}")
+    public ResponseEntity<PostResponse> updateComment(
+            Authentication authentication,
+            @PathVariable("postId") Long postId,
+            @PathVariable("commentId") Long commentId,
+            @RequestBody CommentCreateRequest request
+    ) {
+        return ResponseEntity.ok(postService.updateComment(authentication.getName(), postId, commentId, request.getContent()));
+    }
+
+    @DeleteMapping("/{postId}/comments/{commentId}")
+    public ResponseEntity<PostResponse> deleteComment(
+            Authentication authentication,
+            @PathVariable("postId") Long postId,
+            @PathVariable("commentId") Long commentId
+    ) {
+        return ResponseEntity.ok(postService.deleteComment(authentication.getName(), postId, commentId));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<PostResponse> update(
             Authentication authentication,
