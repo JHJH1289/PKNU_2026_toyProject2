@@ -1,38 +1,55 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const NAVER_MAP_CLIENT_ID = import.meta.env.VITE_NAVER_MAP_CLIENT_ID || "";
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { latitude: 37.5666103, longitude: 126.9783882 };
-let naverMapsPromise;
+let googleMapsPromise;
 
-function loadNaverMaps() {
-  if (window.naver?.maps) {
-    return Promise.resolve(window.naver.maps);
+function loadGoogleMaps() {
+  if (window.google?.maps) {
+    return Promise.resolve(window.google.maps);
   }
 
-  if (!NAVER_MAP_CLIENT_ID) {
-    return Promise.reject(new Error("NAVER_MAP_CLIENT_ID_EMPTY"));
+  if (!GOOGLE_MAPS_API_KEY) {
+    return Promise.reject(new Error("GOOGLE_MAPS_API_KEY_EMPTY"));
   }
 
-  if (!naverMapsPromise) {
-    naverMapsPromise = new Promise((resolve, reject) => {
+  if (!googleMapsPromise) {
+    googleMapsPromise = new Promise((resolve, reject) => {
+      const callbackName = `initGoogleMaps${Date.now()}`;
       const script = document.createElement("script");
       const params = new URLSearchParams({
-        ncpKeyId: NAVER_MAP_CLIENT_ID,
-        submodules: "geocoder",
+        key: GOOGLE_MAPS_API_KEY,
+        callback: callbackName,
+        libraries: "places",
+        language: "ko",
+        region: "KR",
       });
-      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?${params}`;
+
+      window[callbackName] = () => {
+        delete window[callbackName];
+        resolve(window.google.maps);
+      };
+
+      script.src = `https://maps.googleapis.com/maps/api/js?${params}`;
       script.async = true;
-      script.onload = () => resolve(window.naver.maps);
-      script.onerror = () => reject(new Error("NAVER_MAP_LOAD_FAILED"));
+      script.defer = true;
+      script.onerror = () => {
+        delete window[callbackName];
+        reject(new Error("GOOGLE_MAPS_LOAD_FAILED"));
+      };
       document.head.appendChild(script);
     });
   }
 
-  return naverMapsPromise;
+  return googleMapsPromise;
 }
 
 function hasCoordinates(value) {
   return Number.isFinite(value?.latitude) && Number.isFinite(value?.longitude);
+}
+
+function toLatLng(position) {
+  return { lat: position.latitude, lng: position.longitude };
 }
 
 export default function Map({
@@ -44,8 +61,11 @@ export default function Map({
 }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
+  const geocoderRef = useRef(null);
+  const placesServiceRef = useRef(null);
   const markersRef = useRef([]);
   const clickListenerRef = useRef(null);
+  const infoWindowRef = useRef(null);
   const [maps, setMaps] = useState(null);
   const [status, setStatus] = useState("");
 
@@ -57,17 +77,17 @@ export default function Map({
   useEffect(() => {
     let cancelled = false;
 
-    loadNaverMaps()
+    loadGoogleMaps()
       .then((nextMaps) => {
         if (!cancelled) setMaps(nextMaps);
       })
       .catch((error) => {
-        if (error.message === "NAVER_MAP_CLIENT_ID_EMPTY") {
-          setStatus("Naver map key is empty. Set VITE_NAVER_MAP_CLIENT_ID.");
+        if (error.message === "GOOGLE_MAPS_API_KEY_EMPTY") {
+          setStatus("Google Maps API key is empty. Set VITE_GOOGLE_MAPS_API_KEY.");
           return;
         }
 
-        setStatus("Failed to load Naver map.");
+        setStatus("Failed to load Google Maps.");
       });
 
     return () => {
@@ -83,9 +103,15 @@ export default function Map({
       : mappedPosts[0] || DEFAULT_CENTER;
 
     mapRef.current = new maps.Map(mapElementRef.current, {
-      center: new maps.LatLng(center.latitude, center.longitude),
+      center: toLatLng(center),
       zoom: mappedPosts.length > 1 ? 9 : 13,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
     });
+    geocoderRef.current = new maps.Geocoder();
+    placesServiceRef.current = new maps.places.PlacesService(mapRef.current);
+    infoWindowRef.current = new maps.InfoWindow();
   }, [mappedPosts, maps, selectedPosition]);
 
   useEffect(() => {
@@ -98,7 +124,7 @@ export default function Map({
     const points = [];
 
     mappedPosts.forEach((post) => {
-      const position = new maps.LatLng(post.latitude, post.longitude);
+      const position = toLatLng(post);
       points.push(position);
       bounds.extend(position);
 
@@ -108,22 +134,21 @@ export default function Map({
         title: post.locationName || post.caption || "Post",
       });
 
-      const infoWindow = new maps.InfoWindow({
-        content: `<div class="travel-map-info"><strong>${escapeHtml(post.locationName || "Place")}</strong><span>${escapeHtml(post.caption || "")}</span></div>`,
-      });
-
-      maps.Event.addListener(marker, "click", () => {
-        infoWindow.open(mapRef.current, marker);
+      marker.addListener("click", () => {
+        infoWindowRef.current.setContent(
+          `<div class="travel-map-info"><strong>${escapeHtml(post.locationName || "Place")}</strong><span>${escapeHtml(post.caption || "")}</span></div>`,
+        );
+        infoWindowRef.current.open({
+          anchor: marker,
+          map: mapRef.current,
+        });
       });
 
       markersRef.current.push(marker);
     });
 
     if (hasCoordinates(selectedPosition)) {
-      const selected = new maps.LatLng(
-        selectedPosition.latitude,
-        selectedPosition.longitude,
-      );
+      const selected = toLatLng(selectedPosition);
       points.push(selected);
       bounds.extend(selected);
       markersRef.current.push(
@@ -146,16 +171,15 @@ export default function Map({
     if (!maps || !mapRef.current) return;
 
     if (clickListenerRef.current) {
-      maps.Event.removeListener(clickListenerRef.current);
+      clickListenerRef.current.remove();
       clickListenerRef.current = null;
     }
 
     if (selectable) {
-      clickListenerRef.current = maps.Event.addListener(
-        mapRef.current,
+      clickListenerRef.current = mapRef.current.addListener(
         "click",
         (event) => {
-          const point = event.coord;
+          const point = event.latLng;
           onLocationSelect?.({
             latitude: point.lat(),
             longitude: point.lng(),
@@ -167,35 +191,64 @@ export default function Map({
 
     return () => {
       if (clickListenerRef.current) {
-        maps.Event.removeListener(clickListenerRef.current);
+        clickListenerRef.current.remove();
         clickListenerRef.current = null;
       }
     };
   }, [locationName, maps, onLocationSelect, selectable]);
 
   function searchLocation() {
-    if (!maps?.Service?.geocode || !locationName.trim()) return;
+    if (!locationName.trim()) return;
 
-    maps.Service.geocode({ query: locationName.trim() }, (responseStatus, response) => {
-      if (responseStatus !== maps.Service.Status.OK) {
-        setStatus("Place search failed.");
-        return;
-      }
+    if (placesServiceRef.current) {
+      placesServiceRef.current.textSearch(
+        {
+          query: locationName.trim(),
+          region: "KR",
+        },
+        (results, responseStatus) => {
+          if (responseStatus === "OK" && results?.[0]) {
+            const result = results[0];
+            const point = result.geometry.location;
+            setStatus("");
+            onLocationSelect?.({
+              latitude: point.lat(),
+              longitude: point.lng(),
+              locationName: result.name || result.formatted_address || locationName,
+            });
+            return;
+          }
 
-      const address = response.v2.addresses[0];
-      if (!address) {
-        setStatus("No matching place found.");
-        return;
-      }
+          searchAddress();
+        },
+      );
+      return;
+    }
 
-      const nextPosition = {
-        latitude: Number(address.y),
-        longitude: Number(address.x),
-        locationName: address.roadAddress || address.jibunAddress || locationName,
-      };
-      setStatus("");
-      onLocationSelect?.(nextPosition);
-    });
+    searchAddress();
+  }
+
+  function searchAddress() {
+    if (!geocoderRef.current) return;
+
+    geocoderRef.current.geocode(
+      { address: locationName.trim(), region: "KR" },
+      (results, responseStatus) => {
+        if (responseStatus !== "OK" || !results?.[0]) {
+          setStatus("Place search failed.");
+          return;
+        }
+
+        const result = results[0];
+        const point = result.geometry.location;
+        setStatus("");
+        onLocationSelect?.({
+          latitude: point.lat(),
+          longitude: point.lng(),
+          locationName: result.formatted_address || locationName,
+        });
+      },
+    );
   }
 
   return (

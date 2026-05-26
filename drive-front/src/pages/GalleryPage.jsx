@@ -88,6 +88,10 @@ export default function GalleryPage({
     setComposerOpen(true);
   }
 
+  function closeComposer() {
+    setComposerOpen(false);
+  }
+
   async function load(nextTab = tab) {
     try {
       setLoading(true);
@@ -294,6 +298,18 @@ export default function GalleryPage({
     }
   }, [username]);
 
+  useEffect(() => {
+    if (!composerOpen) return;
+
+    window.history.pushState({ travelComposerOpen: true }, "");
+    function handlePopState() {
+      setComposerOpen(false);
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [composerOpen]);
+
   return (
     <div className="travel-app">
       {sidebarOpen && (
@@ -458,7 +474,7 @@ export default function GalleryPage({
 
       {composerOpen && (
         <PostComposer
-          onClose={() => setComposerOpen(false)}
+          onClose={closeComposer}
           onSubmit={handleCreatePost}
         />
       )}
@@ -824,6 +840,12 @@ function PostComposer({ onClose, onSubmit }) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   function handleLocationSelect(nextLocation) {
     setPosition({
