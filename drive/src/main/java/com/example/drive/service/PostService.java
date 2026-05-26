@@ -84,7 +84,7 @@ public class PostService {
 
     public List<PostResponse> getUserPosts(String ownerId, String viewerId) {
         String normalizedOwnerId = normalizeOwnerId(ownerId);
-        String normalizedViewerId = normalizeOwnerId(viewerId);
+        String normalizedViewerId = normalizeViewerId(viewerId);
         return postRepository.findAllByOwnerIdOrderByCreatedAtDescIdDesc(normalizedOwnerId)
                 .stream()
                 .map(post -> toPostResponse(post, normalizedViewerId))
@@ -144,7 +144,11 @@ public class PostService {
     }
 
     private void registerView(Post post, String viewerId) {
-        String normalizedViewerId = normalizeOwnerId(viewerId);
+        String normalizedViewerId = normalizeViewerId(viewerId);
+        if (normalizedViewerId == null) {
+            return;
+        }
+
         if (postViewRepository.existsByPostIdAndViewerId(post.getId(), normalizedViewerId)) {
             return;
         }
@@ -201,7 +205,7 @@ public class PostService {
                 post.getCreatedAt(),
                 post.getViewCount(),
                 postLikeRepository.countByPostId(post.getId()),
-                viewerId != null && postLikeRepository.existsByPostIdAndOwnerId(post.getId(), normalizeOwnerId(viewerId)),
+                viewerId != null && postLikeRepository.existsByPostIdAndOwnerId(post.getId(), viewerId),
                 comments
         );
     }
@@ -224,6 +228,13 @@ public class PostService {
             throw new IllegalArgumentException("ownerId is required.");
         }
         return ownerId.trim();
+    }
+
+    private String normalizeViewerId(String viewerId) {
+        if (viewerId == null || viewerId.isBlank()) {
+            return null;
+        }
+        return viewerId.trim();
     }
 
     private String normalizeText(String value, int maxLength) {

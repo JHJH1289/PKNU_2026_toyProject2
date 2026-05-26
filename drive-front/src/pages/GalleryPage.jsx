@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchProfile, fetchUserProfile, updateProfile } from "../api/profileApi";
-import { addPostComment, createPost, deletePost, fetchAdminPosts, fetchFeed, fetchMyPosts, fetchMyStats, fetchUserPosts, fetchUserStats, togglePostLike, updatePost } from "../api/postApi";
+import {
+  fetchProfile,
+  fetchUserProfile,
+  updateProfile,
+} from "../api/profileApi";
+import {
+  addPostComment,
+  createPost,
+  deletePost,
+  fetchAdminPosts,
+  fetchFeed,
+  fetchMyPosts,
+  fetchMyStats,
+  fetchUserPosts,
+  fetchUserStats,
+  togglePostLike,
+  updatePost,
+} from "../api/postApi";
 import AuthImage from "../components/AuthImage";
 
 const TABS = {
@@ -11,11 +27,20 @@ const TABS = {
 
 const DEFAULT_CATEGORIES = ["\uC5EC\uD589", "\uC2DD\uC0AC", "\uCE74\uD398"];
 
-export default function GalleryPage({ username, role, onLogout }) {
+export default function GalleryPage({
+  username,
+  role,
+  onLogout,
+  onLoginClick,
+}) {
   const [tab, setTab] = useState(TABS.feed);
   const [posts, setPosts] = useState([]);
-  const [profile, setProfile] = useState({ username, bio: "", profileImageUrl: "" });
-  const [profileUsername, setProfileUsername] = useState(username);
+  const [profile, setProfile] = useState({
+    username: username || "Guest",
+    bio: "",
+    profileImageUrl: "",
+  });
+  const [profileUsername, setProfileUsername] = useState(username || "");
   const [myStats, setMyStats] = useState({ postCount: 0, totalViewCount: 0 });
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,9 +48,11 @@ export default function GalleryPage({ username, role, onLogout }) {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isAdmin = role === "ADMIN";
+  const isLoggedIn = Boolean(username);
+  const isAdmin = isLoggedIn && role === "ADMIN";
   const title = useMemo(() => {
-    if (tab === TABS.me) return profileUsername === username ? "My Page" : `${profileUsername}`;
+    if (tab === TABS.me)
+      return profileUsername === username ? "My Page" : `${profileUsername}`;
     if (tab === TABS.admin) return "Admin Mode";
     return "Travel Feed";
   }, [profileUsername, tab, username]);
@@ -40,8 +67,25 @@ export default function GalleryPage({ username, role, onLogout }) {
 
   const visiblePosts = useMemo(() => {
     if (categoryFilter === "All") return posts;
-    return posts.filter((post) => splitTags(post.categoryTag).includes(categoryFilter));
+    return posts.filter((post) =>
+      splitTags(post.categoryTag).includes(categoryFilter),
+    );
   }, [categoryFilter, posts]);
+
+  function requireLogin() {
+    setStatus("로그인이 필요한 기능입니다. 먼저 로그인해주세요.");
+    setComposerOpen(false);
+    onLoginClick?.();
+  }
+
+  function openComposer() {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
+    setComposerOpen(true);
+  }
 
   async function load(nextTab = tab) {
     try {
@@ -49,8 +93,13 @@ export default function GalleryPage({ username, role, onLogout }) {
       setStatus("");
 
       if (nextTab === TABS.me) {
+        if (!isLoggedIn) {
+          requireLogin();
+          return;
+        }
+
         const targetUsername = profileUsername || username;
-        const ownProfile = targetUsername === username;
+        const ownProfile = isLoggedIn && targetUsername === username;
         const [profilePosts, stats, nextProfile] = await Promise.all([
           ownProfile ? fetchMyPosts() : fetchUserPosts(targetUsername),
           ownProfile ? fetchMyStats() : fetchUserStats(targetUsername),
@@ -78,6 +127,11 @@ export default function GalleryPage({ username, role, onLogout }) {
 
   function changeTab(nextTab) {
     if (nextTab === TABS.me) {
+      if (!isLoggedIn) {
+        requireLogin();
+        return;
+      }
+
       openUserProfile(username);
       return;
     }
@@ -90,6 +144,8 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   async function openUserProfile(targetUsername) {
+    if (!targetUsername) return;
+
     try {
       setTab(TABS.me);
       setProfileUsername(targetUsername);
@@ -97,7 +153,7 @@ export default function GalleryPage({ username, role, onLogout }) {
       setSidebarOpen(false);
       setLoading(true);
       setStatus("");
-      const ownProfile = targetUsername === username;
+      const ownProfile = isLoggedIn && targetUsername === username;
       const [profilePosts, stats, nextProfile] = await Promise.all([
         ownProfile ? fetchMyPosts() : fetchUserPosts(targetUsername),
         ownProfile ? fetchMyStats() : fetchUserStats(targetUsername),
@@ -105,7 +161,13 @@ export default function GalleryPage({ username, role, onLogout }) {
       ]);
       setPosts(profilePosts);
       setMyStats(stats || { postCount: 0, totalViewCount: 0 });
-      setProfile(nextProfile || { username: targetUsername, bio: "", profileImageUrl: "" });
+      setProfile(
+        nextProfile || {
+          username: targetUsername,
+          bio: "",
+          profileImageUrl: "",
+        },
+      );
     } catch (error) {
       setStatus(error.message || "Failed to load profile.");
     } finally {
@@ -114,6 +176,11 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   async function handleCreatePost(form) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
     try {
       setStatus("");
       await createPost(form);
@@ -125,6 +192,11 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   async function handleUpdatePost(postId, form) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
     try {
       replacePost(await updatePost(postId, form));
     } catch (error) {
@@ -133,6 +205,11 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   async function handleUpdateProfile(form) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
     try {
       setProfile(await updateProfile(form));
       await load(TABS.me);
@@ -142,6 +219,11 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   async function handleLike(postId) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
     try {
       replacePost(await togglePostLike(postId));
     } catch (error) {
@@ -150,6 +232,11 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   async function handleComment(postId, content) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
     try {
       replacePost(await addPostComment(postId, content));
     } catch (error) {
@@ -158,6 +245,11 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   async function handleDelete(postId) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
     if (!window.confirm("Delete this post?")) return;
 
     try {
@@ -172,22 +264,34 @@ export default function GalleryPage({ username, role, onLogout }) {
   }
 
   function replacePost(updated) {
-    setPosts((current) => current.map((post) => (post.id === updated.id ? updated : post)));
+    setPosts((current) =>
+      current.map((post) => (post.id === updated.id ? updated : post)),
+    );
   }
 
   function handleLogoutClick() {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
     localStorage.removeItem("role");
-    onLogout();
+    onLogout?.();
   }
 
   useEffect(() => {
+    setProfileUsername(username || "");
+    setTab(TABS.feed);
+    setCategoryFilter("All");
     load(TABS.feed);
-    fetchProfile().then((nextProfile) => {
-      if (nextProfile) setProfile(nextProfile);
-    }).catch(() => {});
-  }, []);
+
+    if (isLoggedIn) {
+      fetchProfile()
+        .then((nextProfile) => {
+          if (nextProfile) setProfile(nextProfile);
+        })
+        .catch(() => {});
+    } else {
+      setProfile({ username: "Guest", bio: "", profileImageUrl: "" });
+    }
+  }, [username]);
 
   return (
     <div className="travel-app">
@@ -205,50 +309,90 @@ export default function GalleryPage({ username, role, onLogout }) {
           <span>T</span>
           <div>
             <strong>Travelog</strong>
-            <small>{username}</small>
+            <small>{username || "Guest"}</small>
           </div>
         </div>
 
         <nav className="travel-nav" aria-label="main navigation">
-          <button className={tab === TABS.feed && categoryFilter === "All" ? "active" : ""} type="button" onClick={() => changeTab(TABS.feed)}>
+          <button
+            className={
+              tab === TABS.feed && categoryFilter === "All" ? "active" : ""
+            }
+            type="button"
+            onClick={() => changeTab(TABS.feed)}
+          >
             Home
           </button>
 
           <div className="travel-sidebar-categories">
             <span>Categories</span>
-            {categories.filter((category) => category !== "All").map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={tab === TABS.feed && categoryFilter === category ? "active" : ""}
-                onClick={() => {
-                  setTab(TABS.feed);
-                  setCategoryFilter(category);
-                  setSidebarOpen(false);
-                  load(TABS.feed);
-                }}
-              >
-                #{category}
-              </button>
-            ))}
+            {categories
+              .filter((category) => category !== "All")
+              .map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  className={
+                    tab === TABS.feed && categoryFilter === category
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() => {
+                    setTab(TABS.feed);
+                    setCategoryFilter(category);
+                    setSidebarOpen(false);
+                    load(TABS.feed);
+                  }}
+                >
+                  #{category}
+                </button>
+              ))}
           </div>
 
-          <button className={tab === TABS.me ? "active" : ""} type="button" onClick={() => changeTab(TABS.me)}>
-            My Page
-          </button>
+          {isLoggedIn && (
+            <button
+              className={tab === TABS.me ? "active" : ""}
+              type="button"
+              onClick={() => changeTab(TABS.me)}
+            >
+              My Page
+            </button>
+          )}
           {isAdmin && (
-            <button className={tab === TABS.admin ? "active" : ""} type="button" onClick={() => changeTab(TABS.admin)}>
+            <button
+              className={tab === TABS.admin ? "active" : ""}
+              type="button"
+              onClick={() => changeTab(TABS.admin)}
+            >
               Admin
             </button>
           )}
         </nav>
 
-        <button className="travel-primary-btn" type="button" onClick={() => setComposerOpen(true)}>
+        <button
+          className="travel-primary-btn"
+          type="button"
+          onClick={openComposer}
+        >
           New Post
         </button>
-        <button className="travel-logout-btn" type="button" onClick={handleLogoutClick}>
-          Log out
-        </button>
+        {isLoggedIn ? (
+          <button
+            className="travel-logout-btn"
+            type="button"
+            onClick={handleLogoutClick}
+          >
+            Log out
+          </button>
+        ) : (
+          <button
+            className="travel-logout-btn"
+            type="button"
+            onClick={onLoginClick}
+          >
+            Log in
+          </button>
+        )}
       </aside>
 
       <main className="travel-main">
@@ -258,10 +402,14 @@ export default function GalleryPage({ username, role, onLogout }) {
             <p>Share travel photos, places, and moments.</p>
           </div>
           <div className="travel-topbar-actions">
-            <button type="button" onClick={() => setComposerOpen(true)}>
+            <button type="button" onClick={openComposer}>
               Create
             </button>
-            <button className="travel-mobile-menu-btn" type="button" onClick={() => setSidebarOpen(true)}>
+            <button
+              className="travel-mobile-menu-btn"
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+            >
               ☰
             </button>
           </div>
@@ -272,7 +420,7 @@ export default function GalleryPage({ username, role, onLogout }) {
             profile={profile}
             stats={myStats}
             onSubmit={handleUpdateProfile}
-            editable={profile.username === username}
+            editable={isLoggedIn && profile.username === username}
           />
         )}
 
@@ -295,10 +443,11 @@ export default function GalleryPage({ username, role, onLogout }) {
             <PostCard
               key={post.id}
               post={post}
-              currentUsername={username}
+              currentUsername={username || "Guest"}
+              isLoggedIn={isLoggedIn}
               adminMode={tab === TABS.admin}
-              canEdit={post.ownerId === username}
-              canDelete={isAdmin || post.ownerId === username}
+              canEdit={isLoggedIn && post.ownerId === username}
+              canDelete={isAdmin || (isLoggedIn && post.ownerId === username)}
               onLike={handleLike}
               onComment={handleComment}
               onDelete={handleDelete}
@@ -316,7 +465,12 @@ export default function GalleryPage({ username, role, onLogout }) {
         />
       )}
 
-      <button className="travel-mobile-create-btn" type="button" onClick={() => setComposerOpen(true)} aria-label="create post">
+      <button
+        className="travel-mobile-create-btn"
+        type="button"
+        onClick={openComposer}
+        aria-label="create post"
+      >
         +
       </button>
     </div>
@@ -358,18 +512,35 @@ function ProfileCard({ profile, stats, onSubmit, editable }) {
           )}
         </div>
         <div className="travel-profile-stats">
-          <span><strong>{stats.postCount || 0}</strong> posts</span>
-          <span><strong>{stats.totalViewCount || 0}</strong> views</span>
+          <span>
+            <strong>{stats.postCount || 0}</strong> posts
+          </span>
+          <span>
+            <strong>{stats.totalViewCount || 0}</strong> views
+          </span>
         </div>
         <p>{profile?.bio || "No profile text yet."}</p>
 
         {editing && (
           <form className="travel-profile-form" onSubmit={handleSubmit}>
-            <input type="file" accept="image/*" onChange={(event) => setProfileImage(event.target.files?.[0] || null)} />
-            <textarea value={bio} onChange={(event) => setBio(event.target.value)} rows={3} placeholder="Profile text" />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) =>
+                setProfileImage(event.target.files?.[0] || null)
+              }
+            />
+            <textarea
+              value={bio}
+              onChange={(event) => setBio(event.target.value)}
+              rows={3}
+              placeholder="Profile text"
+            />
             <div>
               <button type="submit">Save</button>
-              <button type="button" onClick={() => setEditing(false)}>Cancel</button>
+              <button type="button" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
             </div>
           </form>
         )}
@@ -378,7 +549,19 @@ function ProfileCard({ profile, stats, onSubmit, editable }) {
   );
 }
 
-function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike, onComment, onDelete, onUpdate, onOpenProfile }) {
+function PostCard({
+  post,
+  currentUsername,
+  isLoggedIn,
+  adminMode,
+  canEdit,
+  canDelete,
+  onLike,
+  onComment,
+  onDelete,
+  onUpdate,
+  onOpenProfile,
+}) {
   const [comment, setComment] = useState("");
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -401,9 +584,17 @@ function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike
   return (
     <article className="travel-post-card">
       <header className="travel-post-header">
-        <button className="travel-profile travel-profile-link" type="button" onClick={() => onOpenProfile(post.ownerId)}>
+        <button
+          className="travel-profile travel-profile-link"
+          type="button"
+          onClick={() => onOpenProfile(post.ownerId)}
+        >
           {post.ownerProfileImageUrl ? (
-            <AuthImage className="travel-profile-mini-image" src={post.ownerProfileImageUrl} alt={`${post.ownerId} profile`} />
+            <AuthImage
+              className="travel-profile-mini-image"
+              src={post.ownerProfileImageUrl}
+              alt={`${post.ownerId} profile`}
+            />
           ) : (
             <span>{post.ownerId.slice(0, 1).toUpperCase()}</span>
           )}
@@ -414,7 +605,11 @@ function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike
         </button>
         {(canEdit || canDelete || adminMode) && (
           <div className="travel-post-menu">
-            <button type="button" className="travel-menu-btn" onClick={() => setMenuOpen((value) => !value)}>
+            <button
+              type="button"
+              className="travel-menu-btn"
+              onClick={() => setMenuOpen((value) => !value)}
+            >
               ⋯
             </button>
             {menuOpen && (
@@ -425,7 +620,11 @@ function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike
                   </button>
                 )}
                 {canDelete && (
-                  <button type="button" className="danger" onClick={() => onDelete(post.id)}>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => onDelete(post.id)}
+                  >
                     Delete
                   </button>
                 )}
@@ -435,13 +634,19 @@ function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike
         )}
       </header>
 
-      <AuthImage className="travel-post-image" src={post.imageUrl} alt="travel post" />
+      <AuthImage
+        className="travel-post-image"
+        src={post.imageUrl}
+        alt="travel post"
+      />
 
       <div className="travel-post-body">
         <div className="travel-actions">
           <div className="travel-action-left">
             <button
-              className={post.likedByMe ? "travel-icon-btn liked" : "travel-icon-btn"}
+              className={
+                post.likedByMe ? "travel-icon-btn liked" : "travel-icon-btn"
+              }
               type="button"
               onClick={() => onLike(post.id)}
               aria-label="like"
@@ -464,7 +669,9 @@ function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike
 
         <div className="travel-tag-row">
           {splitTags(post.categoryTag).map((tag) => (
-            <span className="travel-category-chip" key={tag}>#{tag}</span>
+            <span className="travel-category-chip" key={tag}>
+              #{tag}
+            </span>
           ))}
         </div>
 
@@ -501,9 +708,16 @@ function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike
                 type="text"
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
-                placeholder={`${currentUsername}, add a comment`}
+                placeholder={
+                  isLoggedIn
+                    ? `${currentUsername}, add a comment`
+                    : "로그인 후 댓글을 작성할 수 있습니다."
+                }
+                disabled={!isLoggedIn}
               />
-              <button type="submit">Post</button>
+              <button type="submit" disabled={!isLoggedIn}>
+                Post
+              </button>
             </form>
           </div>
         )}
@@ -515,7 +729,9 @@ function PostCard({ post, currentUsername, adminMode, canEdit, canDelete, onLike
 function PostEditForm({ post, onCancel, onSubmit }) {
   const [caption, setCaption] = useState(post.caption || "");
   const [locationName, setLocationName] = useState(post.locationName || "");
-  const [categoryTag, setCategoryTag] = useState(post.categoryTag || DEFAULT_CATEGORIES[0]);
+  const [categoryTag, setCategoryTag] = useState(
+    post.categoryTag || DEFAULT_CATEGORIES[0],
+  );
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -525,11 +741,22 @@ function PostEditForm({ post, onCancel, onSubmit }) {
   return (
     <form className="travel-edit-form" onSubmit={handleSubmit}>
       <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
-      <input value={locationName} onChange={(event) => setLocationName(event.target.value)} placeholder="Place" />
-      <textarea value={caption} onChange={(event) => setCaption(event.target.value)} rows={3} placeholder="Caption" />
+      <input
+        value={locationName}
+        onChange={(event) => setLocationName(event.target.value)}
+        placeholder="Place"
+      />
+      <textarea
+        value={caption}
+        onChange={(event) => setCaption(event.target.value)}
+        rows={3}
+        placeholder="Caption"
+      />
       <div>
         <button type="submit">Save</button>
-        <button type="button" onClick={onCancel}>Cancel</button>
+        <button type="button" onClick={onCancel}>
+          Cancel
+        </button>
       </div>
     </form>
   );
@@ -567,14 +794,22 @@ function PostComposer({ onClose, onSubmit }) {
 
   return (
     <div className="travel-modal-backdrop" onClick={onClose}>
-      <form className="travel-composer" onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()}>
+      <form
+        className="travel-composer"
+        onSubmit={handleSubmit}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="travel-composer-top">
           <h2>New Travel Post</h2>
-          <button type="button" onClick={onClose}>Close</button>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
         </div>
 
         <input type="file" accept="image/*" onChange={handleImageChange} />
-        {previewUrl && <img className="travel-preview" src={previewUrl} alt="preview" />}
+        {previewUrl && (
+          <img className="travel-preview" src={previewUrl} alt="preview" />
+        )}
 
         <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
         <input

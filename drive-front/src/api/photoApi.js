@@ -5,6 +5,13 @@ function getToken() {
   return localStorage.getItem("token") || "";
 }
 
+function clearSavedLogin() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  localStorage.removeItem("role");
+  window.dispatchEvent(new Event("auth-expired"));
+}
+
 function normalizeImageUrl(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -28,10 +35,8 @@ async function request(url, options = {}) {
   });
 
   if (response.status === 401 || response.status === 403) {
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    window.location.reload();
-    throw new Error("\uB85C\uADF8\uC778\uC774 \uD544\uC694\uD569\uB2C8\uB2E4.");
+    clearSavedLogin();
+    throw new Error("로그인이 필요합니다.");
   }
 
   if (!response.ok) {
@@ -64,9 +69,7 @@ export async function fetchPhotos(folderPath = DEFAULT_FOLDER) {
     method: "GET",
   });
 
-  return Array.isArray(result)
-    ? result.map(normalizePhoto)
-    : [];
+  return Array.isArray(result) ? result.map(normalizePhoto) : [];
 }
 
 export async function fetchAdminPhotos() {
@@ -74,9 +77,7 @@ export async function fetchAdminPhotos() {
     method: "GET",
   });
 
-  return Array.isArray(result)
-    ? result.map(normalizePhoto)
-    : [];
+  return Array.isArray(result) ? result.map(normalizePhoto) : [];
 }
 
 export async function fetchAdminFolders() {
@@ -165,10 +166,13 @@ export async function downloadFolderZip(folderPath) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/photos/folders/download?${params.toString()}`, {
-    method: "GET",
-    headers,
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/photos/folders/download?${params.toString()}`,
+    {
+      method: "GET",
+      headers,
+    },
+  );
 
   if (!response.ok) {
     const text = await response.text();
@@ -176,7 +180,9 @@ export async function downloadFolderZip(folderPath) {
   }
 
   const blob = await response.blob();
-  const filename = getDownloadFilename(response.headers.get("content-disposition")) || `${folderPath || DEFAULT_FOLDER}.zip`;
+  const filename =
+    getDownloadFilename(response.headers.get("content-disposition")) ||
+    `${folderPath || DEFAULT_FOLDER}.zip`;
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = objectUrl;
@@ -309,7 +315,15 @@ function normalizeFolders(result) {
   return Array.isArray(result)
     ? result.map((folder, index) => {
         if (typeof folder === "string") {
-          return { ownerId: "", folderPath: folder, updatedAt: null, sortOrder: index, photoCount: 0, tags: [], previewImageUrls: [] };
+          return {
+            ownerId: "",
+            folderPath: folder,
+            updatedAt: null,
+            sortOrder: index,
+            photoCount: 0,
+            tags: [],
+            previewImageUrls: [],
+          };
         }
 
         return {

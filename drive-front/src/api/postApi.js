@@ -4,6 +4,13 @@ function getToken() {
   return localStorage.getItem("token") || "";
 }
 
+function clearSavedLogin() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  localStorage.removeItem("role");
+  window.dispatchEvent(new Event("auth-expired"));
+}
+
 function normalizeImageUrl(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -24,22 +31,21 @@ async function request(url, options = {}) {
   });
 
   if (response.status === 401 || response.status === 403) {
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("role");
-    window.location.reload();
-    throw new Error("Login is required.");
+    clearSavedLogin();
+    throw new Error("로그인이 필요한 기능입니다.");
   }
 
   if (!response.ok) {
     const text = await response.text();
     let message = text;
+
     try {
       const body = JSON.parse(text);
       message = body.message || text;
     } catch {
       message = text;
     }
+
     throw new Error(message || `HTTP ${response.status}`);
   }
 
@@ -60,7 +66,9 @@ export async function fetchMyPosts() {
 }
 
 export async function fetchUserPosts(username) {
-  return normalizePosts(await request(`/api/posts/users/${encodeURIComponent(username)}`));
+  return normalizePosts(
+    await request(`/api/posts/users/${encodeURIComponent(username)}`),
+  );
 }
 
 export async function fetchMyStats() {
@@ -75,43 +83,65 @@ export async function fetchAdminPosts() {
   return normalizePosts(await request("/api/posts/admin"));
 }
 
-export async function createPost({ image, caption, locationName, categoryTag }) {
+export async function createPost({
+  image,
+  caption,
+  locationName,
+  categoryTag,
+}) {
   const formData = new FormData();
   formData.append("image", image);
-  if (caption?.trim()) formData.append("caption", caption.trim());
-  if (locationName?.trim()) formData.append("locationName", locationName.trim());
-  if (categoryTag?.trim()) formData.append("categoryTag", categoryTag.trim());
 
-  return normalizePost(await request("/api/posts", {
-    method: "POST",
-    body: formData,
-  }));
+  if (caption?.trim()) {
+    formData.append("caption", caption.trim());
+  }
+
+  if (locationName?.trim()) {
+    formData.append("locationName", locationName.trim());
+  }
+
+  if (categoryTag?.trim()) {
+    formData.append("categoryTag", categoryTag.trim());
+  }
+
+  return normalizePost(
+    await request("/api/posts", {
+      method: "POST",
+      body: formData,
+    }),
+  );
 }
 
 export async function updatePost(id, { caption, locationName, categoryTag }) {
-  return normalizePost(await request(`/api/posts/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ caption, locationName, categoryTag }),
-  }));
+  return normalizePost(
+    await request(`/api/posts/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ caption, locationName, categoryTag }),
+    }),
+  );
 }
 
 export async function togglePostLike(id) {
-  return normalizePost(await request(`/api/posts/${id}/like`, {
-    method: "POST",
-  }));
+  return normalizePost(
+    await request(`/api/posts/${id}/like`, {
+      method: "POST",
+    }),
+  );
 }
 
 export async function addPostComment(id, content) {
-  return normalizePost(await request(`/api/posts/${id}/comments`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ content }),
-  }));
+  return normalizePost(
+    await request(`/api/posts/${id}/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    }),
+  );
 }
 
 export async function deletePost(id) {
@@ -121,7 +151,7 @@ export async function deletePost(id) {
 }
 
 function normalizePosts(posts) {
-  return Array.isArray(posts) ? posts.map(normalizePost) : [];
+  return Array.isArray(posts) ? posts.map(normalizePost).filter(Boolean) : [];
 }
 
 function normalizePost(post) {

@@ -29,7 +29,7 @@ public class PostController {
 
     @GetMapping
     public ResponseEntity<List<PostResponse>> feed(Authentication authentication) {
-        return ResponseEntity.ok(postService.getFeed(authentication.getName()));
+        return ResponseEntity.ok(postService.getFeed(currentUsername(authentication)));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -58,7 +58,7 @@ public class PostController {
             Authentication authentication,
             @PathVariable("username") String username
     ) {
-        return ResponseEntity.ok(postService.getUserPosts(username, authentication.getName()));
+        return ResponseEntity.ok(postService.getUserPosts(username, currentUsername(authentication)));
     }
 
     @GetMapping("/users/{username}/stats")
@@ -110,7 +110,7 @@ public class PostController {
 
     @GetMapping("/{id}/image")
     public ResponseEntity<Resource> image(Authentication authentication, @PathVariable("id") Long id) {
-        PostFile postFile = postService.getPostImage(id, authentication.getName());
+        PostFile postFile = postService.getPostImage(id, currentUsername(authentication));
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(postFile.contentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
@@ -123,8 +123,12 @@ public class PostController {
         }
     }
 
+    private String currentUsername(Authentication authentication) {
+        return authentication == null ? null : authentication.getName();
+    }
+
     private boolean isAdmin(Authentication authentication) {
-        return authentication.getAuthorities()
+        return authentication != null && authentication.getAuthorities()
                 .stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }

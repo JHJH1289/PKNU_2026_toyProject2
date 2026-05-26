@@ -4,6 +4,13 @@ function getToken() {
   return localStorage.getItem("token") || "";
 }
 
+function clearSavedLogin() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  localStorage.removeItem("role");
+  window.dispatchEvent(new Event("auth-expired"));
+}
+
 function normalizeImageUrl(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -23,6 +30,11 @@ async function request(url, options = {}) {
     headers,
   });
 
+  if (response.status === 401 || response.status === 403) {
+    clearSavedLogin();
+    throw new Error("로그인이 필요한 기능입니다.");
+  }
+
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `HTTP ${response.status}`);
@@ -40,7 +52,9 @@ export async function fetchProfile() {
 }
 
 export async function fetchUserProfile(username) {
-  return normalizeProfile(await request(`/api/users/${encodeURIComponent(username)}`));
+  return normalizeProfile(
+    await request(`/api/users/${encodeURIComponent(username)}`),
+  );
 }
 
 export async function updateProfile({ bio, profileImage }) {
@@ -50,10 +64,12 @@ export async function updateProfile({ bio, profileImage }) {
     formData.append("profileImage", profileImage);
   }
 
-  return normalizeProfile(await request("/api/me/profile", {
-    method: "POST",
-    body: formData,
-  }));
+  return normalizeProfile(
+    await request("/api/me/profile", {
+      method: "POST",
+      body: formData,
+    }),
+  );
 }
 
 function normalizeProfile(profile) {

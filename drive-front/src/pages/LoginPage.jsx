@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { login, register } from "../api/authApi";
 
-export default function LoginPage({ onLoginSuccess }) {
+export default function LoginPage({ onLoginSuccess, onBackHome }) {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +41,9 @@ export default function LoginPage({ onLoginSuccess }) {
     <div className="auth-page travel-auth-page">
       <div className="auth-card travel-auth-card">
         <h1>Travelog</h1>
-        <p className="auth-subtitle">여행 사진을 올리고, 서로의 여정을 피드에서 만나보세요.</p>
+        <p className="auth-subtitle">
+          여행 사진을 올리고, 서로의 여정을 피드에서 만나보세요.
+        </p>
 
         <div className="auth-tabs">
           <button
@@ -87,6 +89,16 @@ export default function LoginPage({ onLoginSuccess }) {
         </form>
 
         {message && <div className="status-box">{message}</div>}
+
+        {onBackHome && (
+          <button
+            className="secondary-btn auth-home-btn"
+            type="button"
+            onClick={onBackHome}
+          >
+            로그인 없이 둘러보기
+          </button>
+        )}
       </div>
     </div>
   );
