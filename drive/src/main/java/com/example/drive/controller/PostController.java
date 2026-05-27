@@ -40,7 +40,8 @@ public class PostController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PostResponse> create(
             Authentication authentication,
-            @RequestParam("image") MultipartFile image,
+            @RequestParam(value = "images", required = false) List<MultipartFile> images,
+            @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "caption", required = false) String caption,
             @RequestParam(value = "locationName", required = false) String locationName,
             @RequestParam(value = "latitude", required = false) Double latitude,
@@ -56,7 +57,7 @@ public class PostController {
                 longitude,
                 parseLocations(locations),
                 categoryTag,
-                image
+                resolveImages(images, image)
         ));
     }
 
@@ -150,10 +151,32 @@ public class PostController {
     @GetMapping("/{id}/image")
     public ResponseEntity<Resource> image(Authentication authentication, @PathVariable("id") Long id) {
         PostFile postFile = postService.getPostImage(id, currentUsername(authentication));
+        return imageResponse(postFile);
+    }
+
+    @GetMapping("/{id}/images/{imageIndex}")
+    public ResponseEntity<Resource> imageByIndex(
+            Authentication authentication,
+            @PathVariable("id") Long id,
+            @PathVariable("imageIndex") int imageIndex
+    ) {
+        PostFile postFile = postService.getPostImage(id, imageIndex, currentUsername(authentication));
+        return imageResponse(postFile);
+    }
+
+    private ResponseEntity<Resource> imageResponse(PostFile postFile) {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(postFile.contentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
                 .body(postFile.resource());
+    }
+
+    private List<MultipartFile> resolveImages(List<MultipartFile> images, MultipartFile image) {
+        if (images != null && !images.isEmpty()) {
+            return images;
+        }
+
+        return image == null ? List.of() : List.of(image);
     }
 
     private void requireAdmin(Authentication authentication) {

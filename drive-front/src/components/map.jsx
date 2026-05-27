@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { latitude: 37.5666103, longitude: 126.9783882 };
+const ROUTE_LINE_COLOR = "#1d9bf0";
+const ROUTE_LINE_SHADOW = "#ffffff";
+const ROUTE_MARKER_FILL = "#1d9bf0";
+const ROUTE_MARKER_STROKE = "#ffffff";
 let googleMapsPromise;
 
 function loadGoogleMaps() {
@@ -60,17 +64,20 @@ export default function Map({
   locationName = "",
   onLocationSelect,
   onLocationRemove,
+  onLocationRename,
 }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const geocoderRef = useRef(null);
   const placesServiceRef = useRef(null);
   const markersRef = useRef([]);
+  const routeLinesRef = useRef([]);
   const clickListenerRef = useRef(null);
   const infoWindowRef = useRef(null);
   const [maps, setMaps] = useState(null);
   const [status, setStatus] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [editingLocationIndex, setEditingLocationIndex] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(null);
 
   const mappedPosts = useMemo(
@@ -90,6 +97,25 @@ export default function Map({
     [posts],
   );
 
+  const postRouteGroups = useMemo(
+    () =>
+      posts
+        .map((post) => {
+          const locations = Array.isArray(post.locations)
+            ? post.locations.filter((location) => hasCoordinates(location))
+            : hasCoordinates(post)
+              ? [post]
+              : [];
+
+          return locations.map((location) => ({
+            ...location,
+            caption: post.caption,
+          }));
+        })
+        .filter((locations) => locations.length > 1),
+    [posts],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -99,7 +125,9 @@ export default function Map({
       })
       .catch((error) => {
         if (error.message === "GOOGLE_MAPS_API_KEY_EMPTY") {
-          setStatus("Google Maps API key is empty. Set VITE_GOOGLE_MAPS_API_KEY.");
+          setStatus(
+            "Google Maps API key is empty. Set VITE_GOOGLE_MAPS_API_KEY.",
+          );
           return;
         }
 
@@ -157,24 +185,69 @@ export default function Map({
 
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
+    routeLinesRef.current.forEach((line) => line.setMap(null));
+    routeLinesRef.current = [];
 
     const bounds = new maps.LatLngBounds();
     const points = [];
 
-    mappedPosts.forEach((post) => {
-      const position = toLatLng(post);
-      points.push(position);
-      bounds.extend(position);
+    function addPointToBounds(point) {
+      points.push(point);
+      bounds.extend(point);
+    }
 
+    function createRouteLine(path) {
+      if (path.length < 2) return;
+
+      const shadowLine = new maps.Polyline({
+        path,
+        geodesic: true,
+        strokeColor: ROUTE_LINE_SHADOW,
+        strokeOpacity: 0.95,
+        strokeWeight: 8,
+        zIndex: 1,
+      });
+
+      const routeLine = new maps.Polyline({
+        path,
+        geodesic: true,
+        strokeColor: ROUTE_LINE_COLOR,
+        strokeOpacity: 0.78,
+        strokeWeight: 4,
+        zIndex: 2,
+      });
+
+      shadowLine.setMap(mapRef.current);
+      routeLine.setMap(mapRef.current);
+      routeLinesRef.current.push(shadowLine, routeLine);
+    }
+
+    function createRouteMarker(location, index, total, titleFallback) {
+      const position = toLatLng(location);
       const marker = new maps.Marker({
         map: mapRef.current,
         position,
-        title: post.locationName || post.caption || "Post",
+        title: location.locationName || location.caption || titleFallback,
+        label: {
+          text: String(index + 1),
+          color: "#ffffff",
+          fontSize: "12px",
+          fontWeight: "800",
+        },
+        icon: {
+          path: maps.SymbolPath.CIRCLE,
+          scale: total > 9 ? 13 : 12,
+          fillColor: ROUTE_MARKER_FILL,
+          fillOpacity: 0.95,
+          strokeColor: ROUTE_MARKER_STROKE,
+          strokeWeight: 3,
+        },
+        zIndex: 5,
       });
 
       marker.addListener("click", () => {
         infoWindowRef.current.setContent(
-          `<div class="travel-map-info"><strong>${escapeHtml(post.locationName || "Place")}</strong><span>${escapeHtml(post.caption || "")}</span></div>`,
+          `<div class="travel-map-info"><strong>${escapeHtml(location.locationName || `Place ${index + 1}`)}</strong><span>${escapeHtml(location.caption || "")}</span></div>`,
         );
         infoWindowRef.current.open({
           anchor: marker,
@@ -183,31 +256,62 @@ export default function Map({
       });
 
       markersRef.current.push(marker);
-    });
+      addPointToBounds(position);
+    }
 
-    const activeLocations = selectedLocations.length > 0
-      ? selectedLocations
-      : hasCoordinates(selectedPosition)
-        ? [selectedPosition]
-        : [];
+    const activeLocations =
+      selectedLocations.length > 0
+        ? selectedLocations.filter((location) => hasCoordinates(location))
+        : hasCoordinates(selectedPosition)
+          ? [selectedPosition]
+          : [];
 
-    activeLocations.forEach((selectedLocation) => {
-      const selected = toLatLng(selectedLocation);
-      points.push(selected);
-      bounds.extend(selected);
-      markersRef.current.push(
-        new maps.Marker({
+    if (selectable) {
+      activeLocations.forEach((selectedLocation, index) => {
+        createRouteMarker(
+          selectedLocation,
+          index,
+          activeLocations.length,
+          locationName || "Selected place",
+        );
+      });
+      createRouteLine(activeLocations.map((location) => toLatLng(location)));
+    } else {
+      mappedPosts.forEach((post) => {
+        const position = toLatLng(post);
+        addPointToBounds(position);
+
+        const marker = new maps.Marker({
           map: mapRef.current,
-          position: selected,
-          title: selectedLocation.locationName || locationName || "Selected place",
-        }),
-      );
-    });
+          position,
+          title: post.locationName || post.caption || "Post",
+        });
 
-    if (selectable && activeLocations.length === 0 && hasCoordinates(currentPosition)) {
+        marker.addListener("click", () => {
+          infoWindowRef.current.setContent(
+            `<div class="travel-map-info"><strong>${escapeHtml(post.locationName || "Place")}</strong><span>${escapeHtml(post.caption || "")}</span></div>`,
+          );
+          infoWindowRef.current.open({
+            anchor: marker,
+            map: mapRef.current,
+          });
+        });
+
+        markersRef.current.push(marker);
+      });
+
+      postRouteGroups.forEach((locations) => {
+        createRouteLine(locations.map((location) => toLatLng(location)));
+      });
+    }
+
+    if (
+      selectable &&
+      activeLocations.length === 0 &&
+      hasCoordinates(currentPosition)
+    ) {
       const current = toLatLng(currentPosition);
-      points.push(current);
-      bounds.extend(current);
+      addPointToBounds(current);
       markersRef.current.push(
         new maps.Marker({
           map: mapRef.current,
@@ -223,7 +327,16 @@ export default function Map({
     } else if (points.length === 1) {
       mapRef.current.setCenter(points[0]);
     }
-  }, [currentPosition, locationName, mappedPosts, maps, selectable, selectedLocations, selectedPosition]);
+  }, [
+    currentPosition,
+    locationName,
+    mappedPosts,
+    maps,
+    postRouteGroups,
+    selectable,
+    selectedLocations,
+    selectedPosition,
+  ]);
 
   useEffect(() => {
     if (!maps || !mapRef.current) return;
@@ -241,7 +354,7 @@ export default function Map({
           onLocationSelect?.({
             latitude: point.lat(),
             longitude: point.lng(),
-            locationName: searchText.trim() || locationName || "Pinned place",
+            locationName: locationName || "Pinned place",
           });
         },
       );
@@ -322,7 +435,7 @@ export default function Map({
   return (
     <section className={selectable ? "travel-map-picker" : "travel-map-slot"}>
       <div className="travel-map-head">
-        <strong>Map API Area</strong>
+        <strong>{selectable ? "Route Map" : "Travel Route"}</strong>
         {selectable && (
           <div className="travel-map-search">
             <input
@@ -358,14 +471,61 @@ export default function Map({
           {selectedLocations.length === 0 ? (
             <small>Search places or click the map.</small>
           ) : (
-            selectedLocations.map((location, index) => (
-              <span key={`${location.locationName}-${location.latitude}-${location.longitude}`}>
-                {location.locationName || `Place ${index + 1}`}
-                <button type="button" onClick={() => onLocationRemove?.(index)}>
-                  Remove
-                </button>
-              </span>
-            ))
+            <>
+              {selectedLocations.length > 1 && (
+                <small className="travel-route-hint">
+                  {selectedLocations.length}
+                </small>
+              )}
+              {selectedLocations.map((location, index) => (
+                <div
+                  className="travel-location-item"
+                  key={`${location.latitude}-${location.longitude}-${index}`}
+                >
+                  <b>{index + 1}</b>
+                  {editingLocationIndex === index ? (
+                    <input
+                      className="travel-location-name-input"
+                      type="text"
+                      value={location.locationName || ""}
+                      placeholder="장소 이름 입력"
+                      aria-label={`Place ${index + 1} name`}
+                      autoFocus
+                      onChange={(event) =>
+                        onLocationRename?.(index, event.target.value)
+                      }
+                      onBlur={() => setEditingLocationIndex(null)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          event.currentTarget.blur();
+                        }
+
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          setEditingLocationIndex(null);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <button
+                      className="travel-location-name-button"
+                      type="button"
+                      onClick={() => setEditingLocationIndex(index)}
+                      title="클릭해서 장소 이름 수정"
+                    >
+                      {location.locationName || `Place ${index + 1}`}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onLocationRemove?.(index)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </>
           )}
         </div>
       )}

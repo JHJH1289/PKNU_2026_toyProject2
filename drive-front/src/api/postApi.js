@@ -84,6 +84,7 @@ export async function fetchAdminPosts() {
 }
 
 export async function createPost({
+  images,
   image,
   caption,
   locationName,
@@ -93,7 +94,12 @@ export async function createPost({
   categoryTag,
 }) {
   const formData = new FormData();
-  formData.append("image", image);
+  const uploadImages =
+    Array.isArray(images) && images.length > 0 ? images : image ? [image] : [];
+
+  uploadImages.forEach((file) => {
+    formData.append("images", file);
+  });
 
   if (caption?.trim()) {
     formData.append("caption", caption.trim());
@@ -124,21 +130,24 @@ export async function createPost({
   );
 }
 
-export async function updatePost(id, {
-  caption,
-  locationName,
-  latitude,
-  longitude,
-  locations,
-  categoryTag,
-}) {
+export async function updatePost(
+  id,
+  { caption, locationName, latitude, longitude, locations, categoryTag },
+) {
   return normalizePost(
     await request(`/api/posts/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ caption, locationName, latitude, longitude, locations, categoryTag }),
+      body: JSON.stringify({
+        caption,
+        locationName,
+        latitude,
+        longitude,
+        locations,
+        categoryTag,
+      }),
     }),
   );
 }
@@ -194,16 +203,22 @@ function normalizePosts(posts) {
 }
 
 function normalizePost(post) {
-  return post
-    ? {
-        ...post,
-        categoryTag: post.categoryTag || "여행",
-        ownerProfileImageUrl: normalizeImageUrl(post.ownerProfileImageUrl),
-        imageUrl: normalizeImageUrl(post.imageUrl),
-        comments: Array.isArray(post.comments) ? post.comments : [],
-        locations: normalizeLocations(post),
-      }
-    : null;
+  if (!post) return null;
+
+  const imageUrls = Array.isArray(post.imageUrls)
+    ? post.imageUrls.map(normalizeImageUrl).filter(Boolean)
+    : [];
+  const imageUrl = normalizeImageUrl(post.imageUrl || imageUrls[0]);
+
+  return {
+    ...post,
+    categoryTag: post.categoryTag || "여행",
+    ownerProfileImageUrl: normalizeImageUrl(post.ownerProfileImageUrl),
+    imageUrl,
+    imageUrls: imageUrls.length > 0 ? imageUrls : imageUrl ? [imageUrl] : [],
+    comments: Array.isArray(post.comments) ? post.comments : [],
+    locations: normalizeLocations(post),
+  };
 }
 
 function normalizeLocations(post) {

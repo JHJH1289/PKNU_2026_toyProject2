@@ -86,7 +86,7 @@ public class SecurityConfig {
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/share/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/users/**", "/api/posts/*/image").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/users/**", "/api/posts/*/image", "/api/posts/*/images/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/me", "/api/me/**").authenticated()

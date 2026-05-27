@@ -13,6 +13,7 @@ public record PostResponse(
         Double longitude,
         String categoryTag,
         String imageUrl,
+        List<String> imageUrls,
         LocalDateTime createdAt,
         long viewCount,
         long likeCount,

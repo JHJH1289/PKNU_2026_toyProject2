@@ -9,6 +9,7 @@ import com.example.drive.dto.UserStatsResponse;
 import com.example.drive.entity.Comment;
 import com.example.drive.entity.Post;
 import com.example.drive.entity.PostLike;
+import com.example.drive.entity.PostImage;
 import com.example.drive.entity.PostLocation;
 import com.example.drive.entity.PostView;
 import com.example.drive.entity.User;
@@ -24,10 +25,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class PostService {
+
+    private static final int MAX_POST_IMAGES = 10;
 
     private final StorageService storageService;
     private final PostRepository postRepository;
@@ -53,19 +57,20 @@ public class PostService {
     }
 
     @Transactional
-    public PostResponse createPost(String ownerId, String caption, String locationName, Double latitude, Double longitude, List<PostLocationRequest> locations, String categoryTag, MultipartFile image) {
-        if (image == null || image.isEmpty()) {
-            throw new IllegalArgumentException("Image is required.");
-        }
+    public PostResponse createPost(String ownerId, String caption, String locationName, Double latitude, Double longitude, List<PostLocationRequest> locations, String categoryTag, List<MultipartFile> images) {
+        List<MultipartFile> uploadImages = normalizePostImages(images);
+        List<StoredFile> storedFiles = uploadImages.stream()
+                .map(storageService::store)
+                .toList();
+        StoredFile primaryFile = storedFiles.get(0);
 
         List<NormalizedLocation> normalizedLocations = normalizeLocations(locations, locationName, latitude, longitude);
         NormalizedLocation primaryLocation = normalizedLocations.isEmpty() ? null : normalizedLocations.get(0);
-        StoredFile storedFile = storageService.store(image);
         Post post = new Post(
                 normalizeOwnerId(ownerId),
-                storedFile.getStorageKey(),
-                storedFile.getContentType(),
-                storedFile.getSize(),
+                primaryFile.getStorageKey(),
+                primaryFile.getContentType(),
+                primaryFile.getSize(),
                 normalizeText(caption, 2000),
                 primaryLocation == null ? null : primaryLocation.locationName(),
                 primaryLocation == null ? null : primaryLocation.latitude(),
@@ -73,6 +78,7 @@ public class PostService {
                 normalizeCategoryTag(categoryTag),
                 LocalDateTime.now()
         );
+        post.replaceImages(toPostImages(post, storedFiles));
         post.replaceLocations(toPostLocations(post, normalizedLocations));
 
         return toPostResponse(postRepository.save(post), ownerId);
@@ -174,8 +180,29 @@ public class PostService {
 
     @Transactional
     public PostFile getPostImage(Long id, String viewerId) {
+        return getPostImage(id, 0, viewerId);
+    }
+
+    @Transactional
+    public PostFile getPostImage(Long id, int imageIndex, String viewerId) {
         Post post = findPost(id);
         registerView(post, viewerId);
+
+        if (!post.getImages().isEmpty()) {
+            if (imageIndex < 0 || imageIndex >= post.getImages().size()) {
+                throw new IllegalArgumentException("Image not found.");
+            }
+
+            PostImage image = post.getImages().get(imageIndex);
+            String contentType = image.getContentType() != null
+                    ? image.getContentType()
+                    : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+            return new PostFile(storageService.loadAsResource(image.getStorageKey()), contentType);
+        }
+
+        if (imageIndex != 0) {
+            throw new IllegalArgumentException("Image not found.");
+        }
 
         String contentType = post.getContentType() != null
                 ? post.getContentType()
@@ -224,7 +251,7 @@ public class PostService {
             throw new IllegalArgumentException("Post not found.");
         }
 
-        storageService.delete(post.getImageStorageKey());
+        postImageStorageKeys(post).forEach(storageService::delete);
         postRepository.delete(post);
     }
 
@@ -249,6 +276,7 @@ public class PostService {
                 post.getLongitude(),
                 post.getCategoryTag(),
                 "/api/posts/" + post.getId() + "/image",
+                toPostImageUrls(post),
                 post.getCreatedAt(),
                 post.getViewCount(),
                 postLikeRepository.countByPostId(post.getId()),
@@ -382,6 +410,66 @@ public class PostService {
                         index[0]++
                 ))
                 .toList();
+    }
+
+    private List<PostImage> toPostImages(Post post, List<StoredFile> storedFiles) {
+        final int[] index = {0};
+        return storedFiles.stream()
+                .map(file -> new PostImage(
+                        post,
+                        file.getStorageKey(),
+                        file.getContentType(),
+                        file.getSize(),
+                        index[0]++
+                ))
+                .toList();
+    }
+
+    private List<String> toPostImageUrls(Post post) {
+        List<String> urls = new ArrayList<>();
+        urls.add("/api/posts/" + post.getId() + "/image");
+
+        int imageCount = post.getImages().size();
+        for (int index = 1; index < imageCount; index++) {
+            urls.add("/api/posts/" + post.getId() + "/images/" + index);
+        }
+
+        return urls;
+    }
+
+    private List<String> postImageStorageKeys(Post post) {
+        List<String> storageKeys = new ArrayList<>();
+
+        post.getImages().stream()
+                .map(PostImage::getStorageKey)
+                .filter(value -> value != null && !value.isBlank())
+                .forEach(storageKeys::add);
+
+        if (post.getImageStorageKey() != null && !post.getImageStorageKey().isBlank()) {
+            storageKeys.add(post.getImageStorageKey());
+        }
+
+        return storageKeys.stream()
+                .distinct()
+                .toList();
+    }
+
+    private List<MultipartFile> normalizePostImages(List<MultipartFile> images) {
+        List<MultipartFile> normalizedImages = images == null
+                ? List.of()
+                : images.stream()
+                .filter(image -> image != null && !image.isEmpty())
+                .toList();
+
+        if (normalizedImages.isEmpty()) {
+            throw new IllegalArgumentException("At least one image is required.");
+        }
+
+        if (normalizedImages.size() > MAX_POST_IMAGES) {
+            throw new IllegalArgumentException("Images can be uploaded up to 10 files.");
+        }
+
+        return normalizedImages;
     }
 
     private List<PostLocationResponse> toLocationResponses(Post post) {

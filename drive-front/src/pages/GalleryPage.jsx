@@ -29,6 +29,7 @@ const TABS = {
 };
 
 const DEFAULT_CATEGORIES = ["\uC5EC\uD589", "\uC2DD\uC0AC", "\uCE74\uD398"];
+const MAX_POST_IMAGES = 10;
 
 export default function GalleryPage({
   username,
@@ -471,9 +472,7 @@ export default function GalleryPage({
           />
         )}
 
-        {tab === TABS.me && (
-          <Map posts={posts} />
-        )}
+        {tab === TABS.me && <Map posts={posts} />}
 
         {status && <div className="travel-status">{status}</div>}
         {loading && <div className="travel-status">Loading...</div>}
@@ -505,10 +504,7 @@ export default function GalleryPage({
       </main>
 
       {composerOpen && (
-        <PostComposer
-          onClose={closeComposer}
-          onSubmit={handleCreatePost}
-        />
+        <PostComposer onClose={closeComposer} onSubmit={handleCreatePost} />
       )}
 
       <button
@@ -682,11 +678,7 @@ function PostCard({
         )}
       </header>
 
-      <AuthImage
-        className="travel-post-image"
-        src={post.imageUrl}
-        alt="travel post"
-      />
+      <PostImageCarousel post={post} />
 
       <div className="travel-post-body">
         <div className="travel-actions">
@@ -780,6 +772,76 @@ function PostCard({
   );
 }
 
+function PostImageCarousel({ post }) {
+  const images =
+    Array.isArray(post.imageUrls) && post.imageUrls.length > 0
+      ? post.imageUrls
+      : post.imageUrl
+        ? [post.imageUrl]
+        : [];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const total = images.length;
+
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [post.id, total]);
+
+  if (total === 0) return null;
+
+  function showPrevious() {
+    setCurrentIndex((index) => (index === 0 ? total - 1 : index - 1));
+  }
+
+  function showNext() {
+    setCurrentIndex((index) => (index + 1) % total);
+  }
+
+  return (
+    <div className="travel-post-image-wrap">
+      <AuthImage
+        className="travel-post-image"
+        src={images[currentIndex]}
+        alt={`travel post ${currentIndex + 1}`}
+      />
+
+      {total > 1 && (
+        <>
+          <button
+            className="travel-image-nav prev"
+            type="button"
+            onClick={showPrevious}
+            aria-label="previous image"
+          >
+            <span aria-hidden="true">&lt;</span>
+          </button>
+          <button
+            className="travel-image-nav next"
+            type="button"
+            onClick={showNext}
+            aria-label="next image"
+          >
+            <span aria-hidden="true">&gt;</span>
+          </button>
+          <span className="travel-image-count">
+            {currentIndex + 1} / {total}
+          </span>
+          <div className="travel-image-dots" aria-label="post images">
+            {images.map((url, index) => (
+              <button
+                key={`${url}-${index}`}
+                className={index === currentIndex ? "active" : ""}
+                type="button"
+                onClick={() => setCurrentIndex(index)}
+                aria-label={`show image ${index + 1}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function CommentItem({ comment, canManage, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(comment.content || "");
@@ -860,7 +922,19 @@ function PostEditForm({ post, onCancel, onSubmit }) {
   }
 
   function handleLocationRemove(index) {
-    setLocations((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setLocations((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+  }
+
+  function handleLocationRename(index, nextName) {
+    setLocations((current) =>
+      current.map((location, itemIndex) =>
+        itemIndex === index
+          ? { ...location, locationName: nextName }
+          : location,
+      ),
+    );
   }
 
   return (
@@ -871,6 +945,7 @@ function PostEditForm({ post, onCancel, onSubmit }) {
         selectedLocations={locations}
         onLocationSelect={handleLocationSelect}
         onLocationRemove={handleLocationRemove}
+        onLocationRename={handleLocationRename}
       />
       <textarea
         value={caption}
@@ -889,31 +964,43 @@ function PostEditForm({ post, onCancel, onSubmit }) {
 }
 
 function PostComposer({ onClose, onSubmit }) {
-  const [image, setImage] = useState(null);
+  const [images, setImages] = useState([]);
   const [caption, setCaption] = useState("");
   const [locations, setLocations] = useState([]);
   const [categoryTag, setCategoryTag] = useState(DEFAULT_CATEGORIES[0]);
-  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewUrls, setPreviewUrls] = useState([]);
+  const [imageNotice, setImageNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  function revokePreviewUrls(urls) {
+    urls.forEach((url) => URL.revokeObjectURL(url));
+  }
+
   function handleImageChange(event) {
-    const file = event.target.files?.[0] || null;
-    setImage(file);
-    setPreviewUrl((currentUrl) => {
-      if (currentUrl) URL.revokeObjectURL(currentUrl);
-      return file ? URL.createObjectURL(file) : "";
+    const selectedFiles = Array.from(event.target.files || []);
+    const nextImages = selectedFiles.slice(0, MAX_POST_IMAGES);
+
+    setImageNotice(
+      selectedFiles.length > MAX_POST_IMAGES
+        ? `사진은 최대 ${MAX_POST_IMAGES}장까지 업로드할 수 있어요.`
+        : "",
+    );
+    setImages(nextImages);
+    setPreviewUrls((currentUrls) => {
+      revokePreviewUrls(currentUrls);
+      return nextImages.map((file) => URL.createObjectURL(file));
     });
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!image || submitting) return;
+    if (images.length === 0 || submitting) return;
 
     try {
       setSubmitting(true);
       const primaryLocation = locations[0] || null;
       await onSubmit({
-        image,
+        images,
         caption,
         locationName: primaryLocation?.locationName || "",
         latitude: primaryLocation?.latitude,
@@ -923,22 +1010,34 @@ function PostComposer({ onClose, onSubmit }) {
       });
     } finally {
       setSubmitting(false);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      revokePreviewUrls(previewUrls);
     }
   }
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      revokePreviewUrls(previewUrls);
     };
-  }, [previewUrl]);
+  }, [previewUrls]);
 
   function handleLocationSelect(nextLocation) {
     setLocations((current) => [...current, nextLocation]);
   }
 
   function handleLocationRemove(index) {
-    setLocations((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setLocations((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+  }
+
+  function handleLocationRename(index, nextName) {
+    setLocations((current) =>
+      current.map((location, itemIndex) =>
+        itemIndex === index
+          ? { ...location, locationName: nextName }
+          : location,
+      ),
+    );
   }
 
   return (
@@ -955,9 +1054,25 @@ function PostComposer({ onClose, onSubmit }) {
           </button>
         </div>
 
-        <input type="file" accept="image/*" onChange={handleImageChange} />
-        {previewUrl && (
-          <img className="travel-preview" src={previewUrl} alt="preview" />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageChange}
+        />
+        <small className="travel-file-hint">
+          사진은 최대 {MAX_POST_IMAGES}장까지 선택할 수 있어요.
+        </small>
+        {imageNotice && <p className="travel-file-notice">{imageNotice}</p>}
+        {previewUrls.length > 0 && (
+          <div className="travel-preview-grid">
+            {previewUrls.map((url, index) => (
+              <div className="travel-preview-item" key={url}>
+                <img src={url} alt={`preview ${index + 1}`} />
+                <span>{index + 1}</span>
+              </div>
+            ))}
+          </div>
         )}
 
         <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
@@ -966,6 +1081,7 @@ function PostComposer({ onClose, onSubmit }) {
           selectedLocations={locations}
           onLocationSelect={handleLocationSelect}
           onLocationRemove={handleLocationRemove}
+          onLocationRename={handleLocationRename}
         />
         <textarea
           value={caption}
@@ -973,7 +1089,7 @@ function PostComposer({ onClose, onSubmit }) {
           placeholder="Write your travel story."
           rows={4}
         />
-        <button type="submit" disabled={!image || submitting}>
+        <button type="submit" disabled={images.length === 0 || submitting}>
           {submitting ? "Posting..." : "Share"}
         </button>
       </form>

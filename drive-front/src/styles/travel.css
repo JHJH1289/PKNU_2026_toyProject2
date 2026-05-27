@@ -359,6 +359,13 @@
   font-weight: 700;
 }
 
+.travel-post-image-wrap {
+  position: relative;
+  background: #061528;
+  border-top: 1px solid var(--travel-line);
+  border-bottom: 1px solid var(--travel-line);
+}
+
 .travel-post-image {
   width: 100%;
   max-height: min(620px, 72vh);
@@ -366,8 +373,114 @@
   object-fit: contain;
   display: block;
   background: #061528;
-  border-top: 1px solid var(--travel-line);
-  border-bottom: 1px solid var(--travel-line);
+}
+
+.travel-image-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  color: #315a78;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  box-shadow: 0 8px 22px rgba(23, 32, 51, 0.14);
+  backdrop-filter: blur(8px);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.travel-image-nav span {
+  display: block;
+  transform: translateY(-1px);
+}
+
+.travel-image-nav:hover {
+  background: rgba(232, 243, 255, 0.94);
+  color: var(--travel-blue-dark);
+  box-shadow: 0 10px 26px rgba(29, 155, 240, 0.2);
+  transform: translateY(-50%) scale(1.04);
+}
+
+.travel-image-nav:active {
+  transform: translateY(-50%) scale(0.98);
+}
+
+.travel-image-nav:focus-visible {
+  outline: 3px solid rgba(29, 155, 240, 0.24);
+  outline-offset: 3px;
+}
+
+.travel-image-nav.prev {
+  left: 12px;
+}
+
+.travel-image-nav.next {
+  right: 12px;
+}
+
+.travel-image-count {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  color: #315a78;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 9px;
+  box-shadow: 0 6px 16px rgba(23, 32, 51, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.travel-image-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: 0 6px 16px rgba(23, 32, 51, 0.08);
+  backdrop-filter: blur(8px);
+  transform: translateX(-50%);
+}
+
+.travel-image-dots button {
+  width: 6px;
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(49, 90, 120, 0.34);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    width 160ms ease,
+    background 160ms ease;
+}
+
+.travel-image-dots button.active {
+  width: 17px;
+  background: var(--travel-blue);
 }
 
 .travel-post-body {
@@ -571,12 +684,52 @@
   color: var(--travel-blue-dark);
 }
 
-.travel-preview {
-  width: 100%;
-  max-height: min(520px, 62vh);
-  object-fit: contain;
-  background: #061528;
+.travel-file-hint,
+.travel-file-notice {
+  color: var(--travel-muted);
+  font-size: 12px;
+}
+
+.travel-file-notice {
+  margin: -4px 0 0;
+  color: #d92d20;
+  font-weight: 700;
+}
+
+.travel-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.travel-preview-item {
+  position: relative;
+  overflow: hidden;
   border-radius: 8px;
+  background: #061528;
+  aspect-ratio: 1 / 1;
+}
+
+.travel-preview-item img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.travel-preview-item span {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(6, 21, 40, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .travel-category-select,
@@ -725,29 +878,98 @@
   gap: 7px;
 }
 
-.travel-location-list span {
+.travel-route-hint {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark) !important;
+  font-weight: 700;
+}
+
+.travel-location-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
   border: 1px solid var(--travel-line);
-  border-radius: 8px;
+  border-radius: 12px;
   background: #fff;
   color: var(--travel-ink);
   font-size: 13px;
+  box-shadow: 0 8px 20px rgba(29, 155, 240, 0.06);
 }
 
-.travel-location-list span button {
+.travel-location-item b {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #31b6ff 0%, #1d9bf0 100%);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.travel-location-item .travel-location-name-button {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
   border: 0;
   border-radius: 8px;
-  cursor: pointer;
+  background: transparent;
+  color: var(--travel-ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
   padding: 6px 8px;
+}
+
+.travel-location-item .travel-location-name-button:hover,
+.travel-location-item .travel-location-name-button:focus {
+  background: var(--travel-blue-soft);
+  outline: none;
+}
+
+.travel-location-item .travel-location-name-input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--travel-ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  outline: none;
+}
+
+.travel-location-item .travel-location-name-input:focus {
+  background: var(--travel-blue-soft);
+  box-shadow: inset 0 0 0 1px var(--travel-blue);
+}
+
+.travel-location-item button:not(.travel-location-name-button) {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 6px 10px;
   background: var(--travel-blue-soft);
   color: var(--travel-blue-dark);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
+}
+
+.travel-location-item button:not(.travel-location-name-button):hover {
+  background: #d7f0ff;
 }
 
 .travel-map-info {
