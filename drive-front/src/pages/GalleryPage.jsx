@@ -28,7 +28,7 @@ const TABS = {
   admin: "admin",
 };
 
-const DEFAULT_CATEGORIES = ["\uC5EC\uD589", "\uC2DD\uC0AC", "\uCE74\uD398"];
+const DEFAULT_CATEGORIES = ["\uC5EC\uD589", "\uCE74\uD398", "\uC2DD\uC0AC"];
 const MAX_POST_IMAGES = 10;
 
 export default function GalleryPage({
@@ -545,7 +545,14 @@ export default function GalleryPage({
           />
         )}
 
-        {tab === TABS.me && <Map posts={posts} />}
+        {tab === TABS.me && (
+          <Map
+            posts={posts}
+            showCategoryLegend
+            showMarkerLabels={false}
+            showRouteLines={false}
+          />
+        )}
 
         {status && <div className="travel-status">{status}</div>}
         {loading && <div className="travel-status">Loading...</div>}
@@ -1024,6 +1031,7 @@ function PostEditForm({ post, onCancel, onSubmit }) {
       <Map
         selectable
         selectedLocations={locations}
+        markerCategoryTag={categoryTag}
         onLocationSelect={handleLocationSelect}
         onLocationRemove={handleLocationRemove}
         onLocationRename={handleLocationRename}
@@ -1169,6 +1177,7 @@ function PostComposer({ onClose, onSubmit }) {
         <Map
           selectable
           selectedLocations={locations}
+          markerCategoryTag={categoryTag}
           onLocationSelect={handleLocationSelect}
           onLocationRemove={handleLocationRemove}
           onLocationRename={handleLocationRename}
