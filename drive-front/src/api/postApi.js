@@ -97,6 +97,10 @@ export async function createPost({
   const uploadImages =
     Array.isArray(images) && images.length > 0 ? images : image ? [image] : [];
 
+  if (uploadImages.length === 0) {
+    throw new Error("At least one image is required.");
+  }
+
   uploadImages.forEach((file) => {
     formData.append("images", file);
   });

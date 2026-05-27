@@ -50,6 +50,8 @@ export default function GalleryPage({
   const [loading, setLoading] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isLoggedIn = Boolean(username);
@@ -69,12 +71,39 @@ export default function GalleryPage({
     return ["All", ...merged];
   }, [posts]);
 
+  const extraCategories = useMemo(
+    () =>
+      categories.filter(
+        (category) =>
+          category !== "All" && !DEFAULT_CATEGORIES.includes(category),
+      ),
+    [categories],
+  );
+
+  const filteredExtraCategories = useMemo(() => {
+    const keyword = categorySearch.trim().toLowerCase();
+    if (!keyword) return extraCategories;
+
+    return extraCategories.filter((category) =>
+      category.toLowerCase().includes(keyword),
+    );
+  }, [categorySearch, extraCategories]);
+
   const visiblePosts = useMemo(() => {
     if (categoryFilter === "All") return posts;
     return posts.filter((post) =>
       splitTags(post.categoryTag).includes(categoryFilter),
     );
   }, [categoryFilter, posts]);
+
+  function selectFeedCategory(category) {
+    setTab(TABS.feed);
+    setCategoryFilter(category);
+    setCategoryDropdownOpen(false);
+    setCategorySearch("");
+    setSidebarOpen(false);
+    load(TABS.feed);
+  }
 
   function requireLogin() {
     setStatus("로그인이 필요한 기능입니다. 먼저 로그인해주세요.");
@@ -147,6 +176,8 @@ export default function GalleryPage({
     setTab(nextTab);
     setComposerOpen(false);
     setCategoryFilter("All");
+    setCategoryDropdownOpen(false);
+    setCategorySearch("");
     setSidebarOpen(false);
     load(nextTab);
   }
@@ -374,27 +405,75 @@ export default function GalleryPage({
 
           <div className="travel-sidebar-categories">
             <span>Categories</span>
-            {categories
-              .filter((category) => category !== "All")
-              .map((category) => (
+            {DEFAULT_CATEGORIES.map((category) => (
+              <button
+                key={category}
+                type="button"
+                className={
+                  tab === TABS.feed && categoryFilter === category
+                    ? "active"
+                    : ""
+                }
+                onClick={() => selectFeedCategory(category)}
+              >
+                #{category}
+              </button>
+            ))}
+
+            {extraCategories.length > 0 && (
+              <div className="travel-category-dropdown">
                 <button
-                  key={category}
                   type="button"
                   className={
-                    tab === TABS.feed && categoryFilter === category
+                    categoryDropdownOpen ||
+                    (tab === TABS.feed &&
+                      extraCategories.includes(categoryFilter))
                       ? "active"
                       : ""
                   }
-                  onClick={() => {
-                    setTab(TABS.feed);
-                    setCategoryFilter(category);
-                    setSidebarOpen(false);
-                    load(TABS.feed);
-                  }}
+                  onClick={() =>
+                    setCategoryDropdownOpen((current) => !current)
+                  }
+                  aria-expanded={categoryDropdownOpen}
                 >
-                  #{category}
+                  More tags
                 </button>
-              ))}
+                {categoryDropdownOpen && (
+                  <div className="travel-category-dropdown-panel">
+                    <input
+                      type="search"
+                      value={categorySearch}
+                      onChange={(event) =>
+                        setCategorySearch(event.target.value)
+                      }
+                      placeholder="태그 검색"
+                      autoFocus
+                    />
+                    <div className="travel-category-dropdown-list">
+                      {filteredExtraCategories.length > 0 ? (
+                        filteredExtraCategories.map((category) => (
+                          <button
+                            key={category}
+                            type="button"
+                            className={
+                              tab === TABS.feed &&
+                              categoryFilter === category
+                                ? "active"
+                                : ""
+                            }
+                            onClick={() => selectFeedCategory(category)}
+                          >
+                            #{category}
+                          </button>
+                        ))
+                      ) : (
+                        <p>No tags found.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {isLoggedIn && (
@@ -465,6 +544,7 @@ export default function GalleryPage({
 
         {tab === TABS.me && (
           <ProfileCard
+            key={`${profile?.username || ""}-${profile?.bio || ""}-${profile?.profileImageUrl || ""}`}
             profile={profile}
             stats={myStats}
             onSubmit={handleUpdateProfile}
@@ -523,11 +603,6 @@ function ProfileCard({ profile, stats, onSubmit, editable }) {
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState(profile?.bio || "");
   const [profileImage, setProfileImage] = useState(null);
-
-  useEffect(() => {
-    setBio(profile?.bio || "");
-    setProfileImage(null);
-  }, [profile]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -779,30 +854,35 @@ function PostImageCarousel({ post }) {
       : post.imageUrl
         ? [post.imageUrl]
         : [];
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const total = images.length;
-
-  useEffect(() => {
-    setCurrentIndex(0);
-  }, [post.id, total]);
+  const hasMapSlide =
+    Array.isArray(post.locations) && post.locations.length > 0;
+  const total = images.length + (hasMapSlide ? 1 : 0);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const currentIndex = Math.min(selectedIndex, Math.max(total - 1, 0));
 
   if (total === 0) return null;
 
   function showPrevious() {
-    setCurrentIndex((index) => (index === 0 ? total - 1 : index - 1));
+    setSelectedIndex((index) => (index === 0 ? total - 1 : index - 1));
   }
 
   function showNext() {
-    setCurrentIndex((index) => (index + 1) % total);
+    setSelectedIndex((index) => (index + 1) % total);
   }
 
   return (
     <div className="travel-post-image-wrap">
-      <AuthImage
-        className="travel-post-image"
-        src={images[currentIndex]}
-        alt={`travel post ${currentIndex + 1}`}
-      />
+      {currentIndex < images.length ? (
+        <AuthImage
+          className="travel-post-image"
+          src={images[currentIndex]}
+          alt={`travel post ${currentIndex + 1}`}
+        />
+      ) : (
+        <div className="travel-post-map-slide">
+          <Map posts={[post]} />
+        </div>
+      )}
 
       {total > 1 && (
         <>
@@ -826,13 +906,17 @@ function PostImageCarousel({ post }) {
             {currentIndex + 1} / {total}
           </span>
           <div className="travel-image-dots" aria-label="post images">
-            {images.map((url, index) => (
+            {Array.from({ length: total }).map((_, index) => (
               <button
-                key={`${url}-${index}`}
+                key={`${post.id}-slide-${index}`}
                 className={index === currentIndex ? "active" : ""}
                 type="button"
-                onClick={() => setCurrentIndex(index)}
-                aria-label={`show image ${index + 1}`}
+                onClick={() => setSelectedIndex(index)}
+                aria-label={
+                  hasMapSlide && index === images.length
+                    ? "show post map"
+                    : `show image ${index + 1}`
+                }
               />
             ))}
           </div>
@@ -994,7 +1078,11 @@ function PostComposer({ onClose, onSubmit }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (images.length === 0 || submitting) return;
+    if (submitting) return;
+    if (images.length === 0) {
+      setImageNotice("사진을 1장 이상 선택해주세요.");
+      return;
+    }
 
     try {
       setSubmitting(true);

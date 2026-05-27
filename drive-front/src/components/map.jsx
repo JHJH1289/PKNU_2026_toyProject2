@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { latitude: 37.5666103, longitude: 126.9783882 };
@@ -338,6 +338,72 @@ export default function Map({
     selectedPosition,
   ]);
 
+  const reverseGeocodePoint = useCallback(
+    (point) => {
+      if (!geocoderRef.current) {
+        onLocationSelect?.({
+          latitude: point.lat(),
+          longitude: point.lng(),
+          locationName: "Selected place",
+        });
+        return;
+      }
+
+      setStatus("Loading place...");
+      geocoderRef.current.geocode(
+        { location: point, region: "KR" },
+        (results, responseStatus) => {
+          setStatus("");
+          onLocationSelect?.({
+            latitude: point.lat(),
+            longitude: point.lng(),
+            locationName:
+              responseStatus === "OK" && results?.[0]?.formatted_address
+                ? results[0].formatted_address
+                : "Selected place",
+          });
+        },
+      );
+    },
+    [onLocationSelect],
+  );
+
+  const selectClickedLocation = useCallback(
+    (event) => {
+      const point = event.latLng;
+      if (!point) return;
+
+      if (event.placeId && placesServiceRef.current) {
+        event.stop?.();
+        setStatus("Loading place...");
+        placesServiceRef.current.getDetails(
+          {
+            placeId: event.placeId,
+            fields: ["name", "formatted_address", "geometry"],
+          },
+          (place, responseStatus) => {
+            if (responseStatus === "OK" && place) {
+              const placePoint = place.geometry?.location || point;
+              setStatus("");
+              onLocationSelect?.({
+                latitude: placePoint.lat(),
+                longitude: placePoint.lng(),
+                locationName: place.name || place.formatted_address || "Place",
+              });
+              return;
+            }
+
+            reverseGeocodePoint(point);
+          },
+        );
+        return;
+      }
+
+      reverseGeocodePoint(point);
+    },
+    [onLocationSelect, reverseGeocodePoint],
+  );
+
   useEffect(() => {
     if (!maps || !mapRef.current) return;
 
@@ -350,12 +416,7 @@ export default function Map({
       clickListenerRef.current = mapRef.current.addListener(
         "click",
         (event) => {
-          const point = event.latLng;
-          onLocationSelect?.({
-            latitude: point.lat(),
-            longitude: point.lng(),
-            locationName: locationName || "Pinned place",
-          });
+          selectClickedLocation(event);
         },
       );
     }
@@ -366,7 +427,7 @@ export default function Map({
         clickListenerRef.current = null;
       }
     };
-  }, [locationName, maps, onLocationSelect, searchText, selectable]);
+  }, [maps, selectable, selectClickedLocation]);
 
   function searchLocation() {
     const query = searchText.trim();
