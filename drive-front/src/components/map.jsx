@@ -56,6 +56,39 @@ function toLatLng(position) {
   return { lat: position.latitude, lng: position.longitude };
 }
 
+function getLocationAddress(location) {
+  return (
+    location?.address ||
+    location?.formattedAddress ||
+    location?.formatted_address ||
+    ""
+  );
+}
+
+function pickGeocoderAddress(results) {
+  if (!Array.isArray(results) || results.length === 0) return "";
+
+  const preferredResult =
+    results.find((result) =>
+      result.types?.some((type) =>
+        ["street_address", "premise", "subpremise", "route"].includes(type),
+      ),
+    ) || results[0];
+
+  return preferredResult?.formatted_address || "";
+}
+
+function buildInfoWindowContent({ title, address, caption }) {
+  const addressRow = address
+    ? `<span class="travel-map-address">${escapeHtml(address)}</span>`
+    : "";
+  const captionRow = caption
+    ? `<span class="travel-map-caption">${escapeHtml(caption)}</span>`
+    : "";
+
+  return `<div class="travel-map-info"><strong>${escapeHtml(title)}</strong>${addressRow}${captionRow}</div>`;
+}
+
 export default function Map({
   posts = [],
   selectable = false,
@@ -250,13 +283,38 @@ export default function Map({
       });
 
       marker.addListener("click", () => {
+        const title = location.locationName || `Place ${index + 1}`;
+        const caption = location.caption || "";
+        const address = getLocationAddress(location);
+
         infoWindowRef.current.setContent(
-          `<div class="travel-map-info"><strong>${escapeHtml(location.locationName || `Place ${index + 1}`)}</strong><span>${escapeHtml(location.caption || "")}</span></div>`,
+          buildInfoWindowContent({ title, address, caption }),
         );
         infoWindowRef.current.open({
           anchor: marker,
           map: mapRef.current,
         });
+
+        if (!address && geocoderRef.current) {
+          geocoderRef.current.geocode(
+            { location: position, region: "KR" },
+            (results, responseStatus) => {
+              if (responseStatus !== "OK") return;
+
+              const resolvedAddress = pickGeocoderAddress(results);
+              if (!resolvedAddress) return;
+
+              location.address = resolvedAddress;
+              infoWindowRef.current.setContent(
+                buildInfoWindowContent({
+                  title,
+                  address: resolvedAddress,
+                  caption,
+                }),
+              );
+            },
+          );
+        }
       });
 
       markersRef.current.push(marker);
@@ -339,13 +397,14 @@ export default function Map({
         { location: point, region: "KR" },
         (results, responseStatus) => {
           setStatus("");
+          const address =
+            responseStatus === "OK" ? pickGeocoderAddress(results) : "";
+
           onLocationSelect?.({
             latitude: point.lat(),
             longitude: point.lng(),
-            locationName:
-              responseStatus === "OK" && results?.[0]?.formatted_address
-                ? results[0].formatted_address
-                : "Selected place",
+            locationName: address || "Selected place",
+            address,
           });
         },
       );
@@ -369,11 +428,13 @@ export default function Map({
           (place, responseStatus) => {
             if (responseStatus === "OK" && place) {
               const placePoint = place.geometry?.location || point;
+              const address = place.formatted_address || "";
               setStatus("");
               onLocationSelect?.({
                 latitude: placePoint.lat(),
                 longitude: placePoint.lng(),
-                locationName: place.name || place.formatted_address || "Place",
+                locationName: place.name || address || "Place",
+                address,
               });
               return;
             }
@@ -431,11 +492,13 @@ export default function Map({
           if (responseStatus === "OK" && results?.[0]) {
             const result = results[0];
             const point = result.geometry.location;
+            const address = result.formatted_address || "";
             setStatus("");
             onLocationSelect?.({
               latitude: point.lat(),
               longitude: point.lng(),
-              locationName: result.name || result.formatted_address || query,
+              locationName: result.name || address || query,
+              address,
             });
             setSearchText("");
             return;
@@ -467,11 +530,13 @@ export default function Map({
 
         const result = results[0];
         const point = result.geometry.location;
+        const address = pickGeocoderAddress(results);
         setStatus("");
         onLocationSelect?.({
           latitude: point.lat(),
           longitude: point.lng(),
-          locationName: result.formatted_address || query,
+          locationName: address || result.formatted_address || query,
+          address: address || result.formatted_address || "",
         });
         setSearchText("");
       },
@@ -568,63 +633,67 @@ export default function Map({
                   draggingLocationIndex !== index;
 
                 return (
-                <div
-                  className={`travel-location-item${
-                    isDragging ? " is-dragging" : ""
-                  }${isDragOver ? " is-drag-over" : ""}`}
-                  key={`${location.latitude}-${location.longitude}-${index}`}
-                  draggable={canDragLocation && editingLocationIndex !== index}
-                  aria-grabbed={isDragging}
-                  title={canDragLocation ? "Drag to reorder places" : undefined}
-                  onDragStart={(event) =>
-                    handleLocationDragStart(event, index)
-                  }
-                  onDragOver={(event) => handleLocationDragOver(event, index)}
-                  onDrop={(event) => handleLocationDrop(event, index)}
-                  onDragEnd={resetLocationDrag}
-                >
-                  <b>{index + 1}</b>
-                  {editingLocationIndex === index ? (
-                    <input
-                      className="travel-location-name-input"
-                      type="text"
-                      value={location.locationName || ""}
-                      placeholder="장소 이름 입력"
-                      aria-label={`Place ${index + 1} name`}
-                      autoFocus
-                      onChange={(event) =>
-                        onLocationRename?.(index, event.target.value)
-                      }
-                      onBlur={() => setEditingLocationIndex(null)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          event.currentTarget.blur();
-                        }
-
-                        if (event.key === "Escape") {
-                          event.preventDefault();
-                          setEditingLocationIndex(null);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <button
-                      className="travel-location-name-button"
-                      type="button"
-                      onClick={() => setEditingLocationIndex(index)}
-                      title="클릭해서 장소 이름 수정"
-                    >
-                      {location.locationName || `Place ${index + 1}`}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onLocationRemove?.(index)}
+                  <div
+                    className={`travel-location-item${
+                      isDragging ? " is-dragging" : ""
+                    }${isDragOver ? " is-drag-over" : ""}`}
+                    key={`${location.latitude}-${location.longitude}-${index}`}
+                    draggable={
+                      canDragLocation && editingLocationIndex !== index
+                    }
+                    aria-grabbed={isDragging}
+                    title={
+                      canDragLocation ? "Drag to reorder places" : undefined
+                    }
+                    onDragStart={(event) =>
+                      handleLocationDragStart(event, index)
+                    }
+                    onDragOver={(event) => handleLocationDragOver(event, index)}
+                    onDrop={(event) => handleLocationDrop(event, index)}
+                    onDragEnd={resetLocationDrag}
                   >
-                    Remove
-                  </button>
-                </div>
+                    <b>{index + 1}</b>
+                    {editingLocationIndex === index ? (
+                      <input
+                        className="travel-location-name-input"
+                        type="text"
+                        value={location.locationName || ""}
+                        placeholder="장소 이름 입력"
+                        aria-label={`Place ${index + 1} name`}
+                        autoFocus
+                        onChange={(event) =>
+                          onLocationRename?.(index, event.target.value)
+                        }
+                        onBlur={() => setEditingLocationIndex(null)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                          }
+
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            setEditingLocationIndex(null);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <button
+                        className="travel-location-name-button"
+                        type="button"
+                        onClick={() => setEditingLocationIndex(index)}
+                        title="클릭해서 장소 이름 수정"
+                      >
+                        {location.locationName || `Place ${index + 1}`}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onLocationRemove?.(index)}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 );
               })}
             </>

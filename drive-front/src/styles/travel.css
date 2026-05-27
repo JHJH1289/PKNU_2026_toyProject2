@@ -1104,6 +1104,15 @@
   line-height: 1.35;
 }
 
+.travel-map-info .travel-map-address {
+  word-break: keep-all;
+}
+
+.travel-map-info .travel-map-caption {
+  padding-top: 2px;
+  border-top: 1px solid var(--travel-line);
+}
+
 .travel-profile-photo {
   width: 112px;
   height: 112px;
