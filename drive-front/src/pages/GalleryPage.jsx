@@ -880,7 +880,7 @@ function PostImageCarousel({ post }) {
         />
       ) : (
         <div className="travel-post-map-slide">
-          <Map posts={[post]} />
+          <Map posts={[post]} title="Marked Map" />
         </div>
       )}
 
@@ -1021,6 +1021,10 @@ function PostEditForm({ post, onCancel, onSubmit }) {
     );
   }
 
+  function handleLocationReorder(fromIndex, toIndex) {
+    setLocations((current) => reorderItems(current, fromIndex, toIndex));
+  }
+
   return (
     <form className="travel-edit-form" onSubmit={handleSubmit}>
       <CategoryTagInput value={categoryTag} onChange={setCategoryTag} />
@@ -1030,6 +1034,7 @@ function PostEditForm({ post, onCancel, onSubmit }) {
         onLocationSelect={handleLocationSelect}
         onLocationRemove={handleLocationRemove}
         onLocationRename={handleLocationRename}
+        onLocationReorder={handleLocationReorder}
       />
       <textarea
         value={caption}
@@ -1128,6 +1133,10 @@ function PostComposer({ onClose, onSubmit }) {
     );
   }
 
+  function handleLocationReorder(fromIndex, toIndex) {
+    setLocations((current) => reorderItems(current, fromIndex, toIndex));
+  }
+
   return (
     <div className="travel-modal-backdrop" onClick={onClose}>
       <form
@@ -1170,6 +1179,7 @@ function PostComposer({ onClose, onSubmit }) {
           onLocationSelect={handleLocationSelect}
           onLocationRemove={handleLocationRemove}
           onLocationRename={handleLocationRename}
+          onLocationReorder={handleLocationReorder}
         />
         <textarea
           value={caption}
@@ -1203,6 +1213,23 @@ function CategoryTagInput({ value, onChange }) {
       <small>Separate tags with spaces or commas.</small>
     </label>
   );
+}
+
+function reorderItems(items, fromIndex, toIndex) {
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= items.length ||
+    toIndex >= items.length
+  ) {
+    return items;
+  }
+
+  const nextItems = [...items];
+  const [movedItem] = nextItems.splice(fromIndex, 1);
+  nextItems.splice(toIndex, 0, movedItem);
+  return nextItems;
 }
 
 function splitTags(value) {

@@ -992,6 +992,32 @@
   color: var(--travel-ink);
   font-size: 13px;
   box-shadow: 0 8px 20px rgba(29, 155, 240, 0.06);
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.travel-location-item[draggable="true"] {
+  cursor: grab;
+}
+
+.travel-location-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.travel-location-item.is-dragging {
+  opacity: 0.55;
+  transform: scale(0.98);
+}
+
+.travel-location-item.is-drag-over {
+  border-color: var(--travel-blue);
+  box-shadow:
+    0 0 0 2px rgba(29, 155, 240, 0.16),
+    0 12px 24px rgba(29, 155, 240, 0.13);
+  transform: translateY(-1px);
 }
 
 .travel-location-item b {

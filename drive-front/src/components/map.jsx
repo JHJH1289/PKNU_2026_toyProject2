@@ -62,9 +62,11 @@ export default function Map({
   selectedPosition = null,
   selectedLocations = [],
   locationName = "",
+  title,
   onLocationSelect,
   onLocationRemove,
   onLocationRename,
+  onLocationReorder,
 }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -78,6 +80,8 @@ export default function Map({
   const [status, setStatus] = useState("");
   const [searchText, setSearchText] = useState("");
   const [editingLocationIndex, setEditingLocationIndex] = useState(null);
+  const [draggingLocationIndex, setDraggingLocationIndex] = useState(null);
+  const [dragOverLocationIndex, setDragOverLocationIndex] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(null);
 
   const mappedPosts = useMemo(
@@ -277,27 +281,8 @@ export default function Map({
       });
       createRouteLine(activeLocations.map((location) => toLatLng(location)));
     } else {
-      mappedPosts.forEach((post) => {
-        const position = toLatLng(post);
-        addPointToBounds(position);
-
-        const marker = new maps.Marker({
-          map: mapRef.current,
-          position,
-          title: post.locationName || post.caption || "Post",
-        });
-
-        marker.addListener("click", () => {
-          infoWindowRef.current.setContent(
-            `<div class="travel-map-info"><strong>${escapeHtml(post.locationName || "Place")}</strong><span>${escapeHtml(post.caption || "")}</span></div>`,
-          );
-          infoWindowRef.current.open({
-            anchor: marker,
-            map: mapRef.current,
-          });
-        });
-
-        markersRef.current.push(marker);
+      mappedPosts.forEach((post, index) => {
+        createRouteMarker(post, index, mappedPosts.length, "Post");
       });
 
       postRouteGroups.forEach((locations) => {
@@ -493,10 +478,47 @@ export default function Map({
     );
   }
 
+  function resetLocationDrag() {
+    setDraggingLocationIndex(null);
+    setDragOverLocationIndex(null);
+  }
+
+  function handleLocationDragStart(event, index) {
+    if (selectedLocations.length < 2) return;
+
+    setDraggingLocationIndex(index);
+    setDragOverLocationIndex(index);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleLocationDragOver(event, index) {
+    if (draggingLocationIndex === null) return;
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDragOverLocationIndex(index);
+  }
+
+  function handleLocationDrop(event, index) {
+    event.preventDefault();
+
+    const dataIndex = Number(event.dataTransfer.getData("text/plain"));
+    const fromIndex = Number.isInteger(dataIndex)
+      ? dataIndex
+      : draggingLocationIndex;
+
+    if (Number.isInteger(fromIndex) && fromIndex >= 0 && fromIndex !== index) {
+      onLocationReorder?.(fromIndex, index);
+    }
+
+    resetLocationDrag();
+  }
+
   return (
     <section className={selectable ? "travel-map-picker" : "travel-map-slot"}>
       <div className="travel-map-head">
-        <strong>{selectable ? "Route Map" : "Travel Route"}</strong>
+        <strong>{title || (selectable ? "Route Map" : "Travel Route")}</strong>
         {selectable && (
           <div className="travel-map-search">
             <input
@@ -538,10 +560,28 @@ export default function Map({
                   {selectedLocations.length}
                 </small>
               )}
-              {selectedLocations.map((location, index) => (
+              {selectedLocations.map((location, index) => {
+                const canDragLocation = selectedLocations.length > 1;
+                const isDragging = draggingLocationIndex === index;
+                const isDragOver =
+                  dragOverLocationIndex === index &&
+                  draggingLocationIndex !== index;
+
+                return (
                 <div
-                  className="travel-location-item"
+                  className={`travel-location-item${
+                    isDragging ? " is-dragging" : ""
+                  }${isDragOver ? " is-drag-over" : ""}`}
                   key={`${location.latitude}-${location.longitude}-${index}`}
+                  draggable={canDragLocation && editingLocationIndex !== index}
+                  aria-grabbed={isDragging}
+                  title={canDragLocation ? "Drag to reorder places" : undefined}
+                  onDragStart={(event) =>
+                    handleLocationDragStart(event, index)
+                  }
+                  onDragOver={(event) => handleLocationDragOver(event, index)}
+                  onDrop={(event) => handleLocationDrop(event, index)}
+                  onDragEnd={resetLocationDrag}
                 >
                   <b>{index + 1}</b>
                   {editingLocationIndex === index ? (
@@ -585,7 +625,8 @@ export default function Map({
                     Remove
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </>
           )}
         </div>
