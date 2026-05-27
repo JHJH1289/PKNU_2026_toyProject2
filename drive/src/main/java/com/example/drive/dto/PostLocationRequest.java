@@ -2,6 +2,7 @@ package com.example.drive.dto;
 
 public class PostLocationRequest {
     private String locationName;
+    private String address;
     private Double latitude;
     private Double longitude;
 
@@ -11,6 +12,14 @@ public class PostLocationRequest {
 
     public void setLocationName(String locationName) {
         this.locationName = locationName;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 
     public Double getLatitude() {

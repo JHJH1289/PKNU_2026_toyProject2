@@ -17,6 +17,9 @@ public class PostLocation {
     @Column(nullable = false, length = 120)
     private String locationName;
 
+    @Column(length = 300)
+    private String address;
+
     @Column(nullable = false)
     private Double latitude;
 
@@ -29,9 +32,10 @@ public class PostLocation {
     protected PostLocation() {
     }
 
-    public PostLocation(Post post, String locationName, Double latitude, Double longitude, Integer sortOrder) {
+    public PostLocation(Post post, String locationName, String address, Double latitude, Double longitude, Integer sortOrder) {
         this.post = post;
         this.locationName = locationName;
+        this.address = address;
         this.latitude = latitude;
         this.longitude = longitude;
         this.sortOrder = sortOrder;
@@ -40,6 +44,7 @@ public class PostLocation {
     public Long getId() { return id; }
     public Post getPost() { return post; }
     public String getLocationName() { return locationName; }
+    public String getAddress() { return address; }
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
     public Integer getSortOrder() { return sortOrder; }

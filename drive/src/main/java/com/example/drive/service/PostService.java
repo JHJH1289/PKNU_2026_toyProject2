@@ -374,6 +374,7 @@ public class PostService {
                         && location.getLongitude() != null)
                 .map(location -> new NormalizedLocation(
                         normalizeText(location.getLocationName(), 120),
+                        normalizeText(location.getAddress(), 300),
                         normalizeLatitude(location.getLatitude()),
                         normalizeLongitude(location.getLongitude())
                 ))
@@ -390,6 +391,7 @@ public class PostService {
             if (normalizedName != null) {
                 return List.of(new NormalizedLocation(
                         normalizedName,
+                        null,
                         normalizeLatitude(fallbackLatitude),
                         normalizeLongitude(fallbackLongitude)
                 ));
@@ -405,6 +407,7 @@ public class PostService {
                 .map(location -> new PostLocation(
                         post,
                         location.locationName(),
+                        location.address(),
                         location.latitude(),
                         location.longitude(),
                         index[0]++
@@ -479,6 +482,7 @@ public class PostService {
                     .map(location -> new PostLocationResponse(
                             location.getId(),
                             location.getLocationName(),
+                            location.getAddress(),
                             location.getLatitude(),
                             location.getLongitude()
                     ))
@@ -489,6 +493,7 @@ public class PostService {
             return List.of(new PostLocationResponse(
                     null,
                     post.getLocationName(),
+                    null,
                     post.getLatitude(),
                     post.getLongitude()
             ));
@@ -497,7 +502,7 @@ public class PostService {
         return List.of();
     }
 
-    private record NormalizedLocation(String locationName, Double latitude, Double longitude) {
+    private record NormalizedLocation(String locationName, String address, Double latitude, Double longitude) {
     }
 
     public record PostFile(Resource resource, String contentType) {
