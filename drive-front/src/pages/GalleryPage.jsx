@@ -431,9 +431,7 @@ export default function GalleryPage({
                       ? "active"
                       : ""
                   }
-                  onClick={() =>
-                    setCategoryDropdownOpen((current) => !current)
-                  }
+                  onClick={() => setCategoryDropdownOpen((current) => !current)}
                   aria-expanded={categoryDropdownOpen}
                 >
                   More tags
@@ -456,8 +454,7 @@ export default function GalleryPage({
                             key={category}
                             type="button"
                             className={
-                              tab === TABS.feed &&
-                              categoryFilter === category
+                              tab === TABS.feed && categoryFilter === category
                                 ? "active"
                                 : ""
                             }
