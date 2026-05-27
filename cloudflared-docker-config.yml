@@ -1,0 +1,12 @@
+tunnel: e5027e9f-59c3-4680-a437-b30ae16e93d6
+credentials-file: /etc/cloudflared/e5027e9f-59c3-4680-a437-b30ae16e93d6.json
+protocol: http2
+
+ingress:
+  - hostname: vinylunderground.art
+    service: http://host.docker.internal:5173
+  - hostname: www.vinylunderground.art
+    service: http://host.docker.internal:5173
+  - hostname: jdrive.xn--hk3b17f.xn--3e0b707e
+    service: http://host.docker.internal:5173
+  - service: http_status:404

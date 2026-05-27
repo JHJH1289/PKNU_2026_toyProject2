@@ -1,222 +1,465 @@
-# Travelog
+# ToyProject2 Travelog
 
-Travelog는 Spring Boot 백엔드와 React/Vite 프론트엔드로 구성된 여행 사진 공유 웹사이트입니다. 사용자는 게시물을 올리고, 다른 사람의 게시물을 피드에서 보고, 좋아요와 댓글을 남길 수 있습니다. 관리자는 관리자 모드에서 모든 게시물을 삭제할 수 있고, 사용자는 마이페이지에서 본인 게시물과 조회수 통계를 확인할 수 있습니다.
+사진 저장소 기능과 여행 피드 기능을 결합한 웹 애플리케이션입니다. 사용자는 사진을 업로드하고 폴더별로 관리할 수 있으며, 여행 게시물에는 여러 장의 이미지, 위치 정보, 경로, 카테고리 태그를 함께 등록할 수 있습니다.
 
-## 실행
+## 기술 스택
 
-백엔드:
+### Frontend
+
+- React
+- Vite
+- JavaScript
+- CSS Grid / Flexbox
+- Google Maps JavaScript API
+- Google Places API
+- Google Geocoder API
+- FormData 기반 multipart 업로드
+
+### Backend
+
+- Spring Boot
+- Spring Security
+- JWT 인증
+- JPA / Hibernate
+- Oracle Database
+- MultipartFile 파일 업로드
+- Local Storage 기반 파일 저장
+
+## 실행 방법
+
+### Backend
 
 ```powershell
 cd D:\code\toyProject2\drive
 .\gradlew.bat bootRun
 ```
 
-프론트엔드:
+기본 포트는 `8080`입니다. 이미 서버가 실행 중이면 다음 오류가 발생할 수 있습니다.
+
+```text
+Port 8080 was already in use.
+```
+
+이 경우 기존 프로세스를 종료하거나 이미 실행 중인 서버를 그대로 사용하면 됩니다.
+
+```powershell
+netstat -ano | Select-String ':8080'
+Stop-Process -Id <PID> -Force
+```
+
+### Frontend
 
 ```powershell
 cd D:\code\toyProject2\drive-front
+npm install
 npm run dev
 ```
 
-검증:
+기본 개발 서버는 `5173` 포트를 사용합니다.
+
+## 환경 변수
+
+프론트엔드 지도 기능은 Google Maps API 키를 사용합니다.
+
+`drive-front/.env`
+
+```env
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
+
+백엔드 DB, 저장소, JWT 설정은 다음 파일에서 관리합니다.
+
+```text
+drive/src/main/resources/application.properties
+```
+
+## 프론트엔드 기능
+
+### 1. 화면 구조
+
+핵심 화면은 `drive-front/src/pages/GalleryPage.jsx`에서 구성합니다.
+
+주요 역할:
+
+- 여행 피드 표시
+- 내 페이지 표시
+- 관리자 모드 표시
+- 게시물 작성/수정/삭제
+- 좋아요, 댓글, 조회수 표시
+- 카테고리 필터링
+
+주요 React Hook:
+
+- `useState`: 탭, 게시물 목록, 프로필, 로딩 상태, 모달 상태 관리
+- `useEffect`: 최초 로딩, 사용자 변경 시 데이터 갱신, 모달 뒤로가기 처리
+- `useMemo`: 카테고리 목록, 검색 결과, 필터링된 게시물 목록 계산
+
+주요 함수:
+
+- `load()`: 현재 탭에 맞는 게시물 데이터 조회
+- `changeTab()`: 피드, 내 페이지, 관리자 탭 전환
+- `openUserProfile()`: 특정 사용자 프로필과 게시물 조회
+- `handleCreatePost()`: 게시물 작성 API 호출
+- `handleUpdatePost()`: 게시물 수정 API 호출
+- `handleLike()`: 좋아요 토글
+- `handleComment()`: 댓글 작성
+- `selectFeedCategory()`: 선택한 태그로 피드 필터링
+- `splitTags()`: 태그 문자열을 배열로 변환
+- `reorderItems()`: 위치 목록 순서 재배열
+
+### 2. 게시물 작성
+
+게시물 작성은 `PostComposer` 컴포넌트에서 처리합니다.
+
+구현 내용:
+
+- 여러 장 이미지 선택
+- 이미지 미리보기
+- 설명 입력
+- 카테고리 태그 입력
+- 지도에서 여러 위치 선택
+- 선택한 위치 이름 수정
+- 선택한 위치 삭제
+- 선택한 위치 드래그 순서 변경
+
+이미지 검증:
+
+- 이미지가 1장도 없으면 작성 버튼 비활성화
+- 제출 시에도 `images.length === 0`이면 요청 차단
+- `postApi.js`의 `createPost()`에서도 이미지가 없으면 에러 발생
+
+업로드 방식:
+
+- `FormData` 사용
+- 이미지 파일은 `images` 필드로 전송
+- 위치 목록은 `locations` 값을 JSON 문자열로 직렬화해 전송
+
+### 3. 게시물 카드와 캐러셀
+
+게시물 카드는 `PostCard` 컴포넌트에서 출력합니다.
+
+포함 정보:
+
+- 작성자
+- 위치명
+- 이미지 캐러셀
+- 카테고리 태그
+- 본문
+- 좋아요
+- 댓글
+- 조회수
+
+이미지 캐러셀은 `PostImageCarousel`에서 구현합니다.
+
+기능:
+
+- 여러 장 이미지 좌우 이동
+- 하단 점 네비게이션
+- 현재 슬라이드 번호 표시
+- 위치 정보가 있는 게시물은 마지막 슬라이드에 지도 표시
+- 지도 슬라이드 제목은 `Marked Map`
+
+### 4. 카테고리/태그 검색
+
+왼쪽 사이드바에는 기본 카테고리 3개를 고정 표시합니다.
+
+기본 카테고리:
+
+- 여행
+- 식사
+- 카페
+
+그 외 태그는 `More tags` 드롭다운에서 검색해 선택합니다. 추가 태그가 없더라도 `More tags` 버튼은 항상 표시되며, 결과가 없으면 `No tags found.`가 표시됩니다.
+
+관련 상태와 계산:
+
+- `categorySearch`: 검색어
+- `categoryDropdownOpen`: 드롭다운 열림 상태
+- `categories`: 게시물에서 수집한 전체 태그 목록
+- `extraCategories`: 기본 태그를 제외한 추가 태그 목록
+- `filteredExtraCategories`: 검색어로 필터링된 추가 태그 목록
+
+### 5. 지도 기능
+
+지도 기능은 `drive-front/src/components/map.jsx`의 `Map` 컴포넌트에서 구현합니다.
+
+주요 기능:
+
+- 게시물 위치 마커 표시
+- 여러 위치 경로 라인 표시
+- 장소명 검색
+- 지도 클릭으로 장소 선택
+- 실제 장소명 조회
+- 좌표를 주소로 변환
+- 선택 장소 이름 수정
+- 선택 장소 삭제
+- 선택 장소 순서 드래그 변경
+
+주요 함수:
+
+- `loadGoogleMaps()`: Google Maps 스크립트 동적 로드
+- `hasCoordinates()`: 위치 좌표 유효성 검사
+- `toLatLng()`: Google Maps 좌표 형식으로 변환
+- `createRouteMarker()`: 번호 마커 생성
+- `createRouteLine()`: 경로 라인 생성
+- `searchLocation()`: Places API 기반 장소 검색
+- `searchAddress()`: Geocoder API 기반 주소 검색
+- `selectClickedLocation()`: 지도 클릭 이벤트 처리
+- `reverseGeocodePoint()`: 좌표를 주소로 변환
+- `handleLocationDragStart()`: 위치 드래그 시작
+- `handleLocationDragOver()`: 드래그 중 드롭 대상 처리
+- `handleLocationDrop()`: 위치 순서 변경 완료
+
+장소 클릭 개선:
+
+- `event.placeId`가 있으면 `PlacesService.getDetails()`로 실제 장소명을 조회합니다.
+- `placeId`가 없으면 reverse geocode 결과를 사용합니다.
+- 이 방식으로 `Pinned place`처럼 임시 이름이 저장되는 문제를 줄였습니다.
+
+### 6. 스타일
+
+주요 스타일은 `drive-front/src/styles/travel.css`에서 관리합니다.
+
+구현 내용:
+
+- 여행 피드 레이아웃
+- 왼쪽 사이드바
+- 모바일 슬라이드 메뉴
+- 게시물 카드
+- 이미지 캐러셀 화살표
+- 지도 슬라이드
+- 태그 검색 드롭다운
+- 위치 리스트 드래그 효과
+- 이미지 미리보기 그리드
+
+## 백엔드 기능
+
+### 1. 인증
+
+Spring Security와 JWT를 사용합니다.
+
+관련 파일:
+
+- `AuthController.java`
+- `AuthService.java`
+- `JwtTokenProvider.java`
+- `JwtAuthenticationFilter.java`
+- `CustomUserDetailsService.java`
+- `SecurityConfig.java`
+
+기능:
+
+- 회원가입
+- 로그인
+- JWT 발급
+- JWT 검증
+- `USER`, `ADMIN` 역할 구분
+
+### 2. 게시물 API
+
+게시물 기능은 `PostController`와 `PostService`에서 처리합니다.
+
+주요 API:
+
+- `GET /api/posts`: 전체 피드 조회
+- `POST /api/posts`: 게시물 작성
+- `GET /api/posts/me`: 내 게시물 조회
+- `GET /api/posts/users/{username}`: 특정 사용자 게시물 조회
+- `PUT /api/posts/{id}`: 게시물 수정
+- `DELETE /api/posts/{id}`: 게시물 삭제
+- `POST /api/posts/{id}/like`: 좋아요 토글
+- `POST /api/posts/{id}/comments`: 댓글 작성
+- `GET /api/posts/{id}/image`: 대표 이미지 조회
+- `GET /api/posts/{id}/images/{imageIndex}`: 추가 이미지 조회
+
+주요 함수:
+
+- `createPost()`: 게시물 작성
+- `getFeed()`: 전체 피드 조회
+- `getMyPosts()`: 내 게시물 조회
+- `getUserPosts()`: 특정 사용자 게시물 조회
+- `updatePost()`: 게시물 수정
+- `deletePost()`: 게시물 삭제
+- `toggleLike()`: 좋아요 토글
+- `getPostImage()`: 게시물 이미지 파일 조회
+
+### 3. 게시물 이미지 처리
+
+게시물은 여러 장의 이미지를 가질 수 있습니다.
+
+관련 구조:
+
+- `POSTS`
+- `POST_IMAGES`
+- `Post`
+- `PostImage`
+
+구현 방식:
+
+- `MultipartFile` 목록으로 이미지 업로드
+- `StorageService`로 로컬 저장소에 파일 저장
+- DB에는 `storageKey`, `contentType`, `fileSize`, `sortOrder` 저장
+- 첫 번째 이미지를 대표 이미지처럼 사용
+
+주요 함수:
+
+- `normalizePostImages()`: 이미지 개수와 유효성 검사
+- `toPostImages()`: 저장된 파일 정보를 `PostImage` 엔티티로 변환
+- `toPostImageUrls()`: 프론트 응답용 이미지 URL 목록 생성
+- `postImageStorageKeys()`: 삭제할 이미지 파일 키 수집
+
+### 4. 게시물 위치 처리
+
+게시물은 여러 위치를 가질 수 있고, 위치 순서는 경로로 사용됩니다.
+
+관련 구조:
+
+- `POST_LOCATIONS`
+- `PostLocation`
+- `PostLocationRequest`
+- `PostLocationResponse`
+
+구현 방식:
+
+- 프론트에서 `locations` 배열을 JSON 문자열로 전송
+- `PostController.parseLocations()`에서 DTO 목록으로 변환
+- `PostService.normalizeLocations()`에서 값 검증
+- `toPostLocations()`로 엔티티 변환
+- `sortOrder`로 위치 순서 유지
+
+수정된 사항:
+
+- `PostLocationRequest`에 setter 추가
+- `PostUpdateRequest`에 setter 추가
+- 위치 포함 게시물 작성 시 JSON 역직렬화 오류 방지
+
+### 5. 댓글
+
+댓글은 `COMMENTS` 테이블로 관리합니다.
+
+주요 API:
+
+- `POST /api/posts/{id}/comments`
+- `PUT /api/posts/{postId}/comments/{commentId}`
+- `DELETE /api/posts/{postId}/comments/{commentId}`
+
+주요 함수:
+
+- `addComment()`
+- `updateComment()`
+- `deleteComment()`
+- `findComment()`
+
+### 6. 좋아요와 조회수
+
+좋아요는 `POST_LIKES`, 조회 기록은 `POST_VIEWS` 테이블로 관리합니다.
+
+구현 내용:
+
+- 같은 사용자의 좋아요 여부 확인 후 생성/삭제
+- 게시물 이미지 조회 시 조회 기록 확인
+- 같은 사용자의 중복 조회수 증가 방지
+
+주요 함수:
+
+- `toggleLike()`
+- `registerView()`
+
+### 7. 사진 저장소
+
+사진 저장소 기능은 기존 Drive 기능으로 유지됩니다.
+
+관련 테이블:
+
+- `PHOTOS`
+- `PHOTO_FOLDERS`
+- `FOLDER_SHARE_LINKS`
+
+관련 파일:
+
+- `PhotoController.java`
+- `PhotoService.java`
+- `PhotoRepository.java`
+- `PhotoFolderRepository.java`
+- `FolderShareLinkRepository.java`
+- `LocalStorageService.java`
+
+주요 기능:
+
+- 사진 업로드
+- 썸네일 저장
+- 폴더 생성/수정
+- 폴더별 사진 조회
+- 태그 추가/삭제
+- 중복 사진 조회
+- 휴지통 처리
+- 폴더 공유 링크
+
+## 데이터베이스 구조
+
+### 사용자/권한
+
+- `USERS`
+- `ADMINS`
+
+### 게시물
+
+- `POSTS`
+- `POST_IMAGES`
+- `POST_LOCATIONS`
+- `COMMENTS`
+- `POST_LIKES`
+- `POST_VIEWS`
+
+### 사진 저장소
+
+- `PHOTOS`
+- `PHOTO_FOLDERS`
+- `FOLDER_SHARE_LINKS`
+
+## 검증
+
+### Frontend
+
+```powershell
+cd D:\code\toyProject2\drive-front
+npm.cmd run build
+```
+
+확인한 내용:
+
+- React/Vite 빌드 통과
+- 변경 파일 ESLint 에러 없음
+- 이미지 캐러셀 빌드 확인
+- 지도 슬라이드 빌드 확인
+- 태그 검색 드롭다운 빌드 확인
+
+### Backend
 
 ```powershell
 cd D:\code\toyProject2\drive
-.\gradlew.bat test
-
-cd D:\code\toyProject2\drive-front
-npm run build
+.\gradlew.bat compileJava
 ```
 
-## 데이터베이스
+확인한 내용:
 
-현재 앱은 기존 `drive_db`를 사용하지 않고 새 DB `travel_share_db`를 사용합니다. 생성 순서는 [psql.txt](psql.txt)에 정리되어 있습니다.
+- Java 컴파일 통과
+- 위치 포함 multipart POST 요청 성공
+- `8080` 서버 실행 상태 확인
 
-필수 테이블:
+## 향후 개선 사항
 
-- `users`: 로그인 사용자
-- `users.profile_image_storage_key`, `users.bio`: 마이페이지 프로필 사진과 소개글
-- `admins`: 관리자 계정 식별
-- `posts`: 여행 게시물
-- `comments`: 게시물 댓글
-- `post_likes`: 게시물 좋아요
-- `post_views`: 사용자별 게시물 조회 기록
+### Frontend
 
-## EXIF 제거
+- `GalleryPage.jsx`의 기존 `useEffect` dependency warning 정리
+- 지도 로딩 실패 시 사용자 안내 개선
+- 모바일 지도 슬라이드 UI 개선
+- 게시물 작성 성공/실패 알림 UX 개선
 
-EXIF 기능은 사용하지 않도록 제거했습니다.
+### Backend / DB
 
-- 삭제: `PhotoMetadataService.java`
-- 삭제: `PhotoMetadata.java`
-- 삭제: `drive-front/src/utils/exifFrame.js`
-- 삭제: `ExifFramePreviewModal.jsx`
-- 삭제: `ImageViewerModal.jsx`
-- 삭제: EXIF 프레임용 카메라 로고 PNG
-- 제거: `metadata-extractor` Gradle 의존성
-
-기존 레거시 사진 API는 컴파일 호환을 위해 남아 있지만, 더 이상 EXIF를 읽거나 저장하지 않습니다.
-
-## 백엔드 파일별 역할
-
-### Application
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `DriveApplication.java` | `main` | Spring Boot 애플리케이션 시작점 |
-
-### Config
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `SecurityConfig.java` | `securityFilterChain`, `passwordEncoder`, `authenticationManager`, `corsConfigurationSource` | JWT 인증, CORS, API 접근 권한 설정 |
-| `AdminAccountInitializer.java` | `run` | 기본 관리자 계정과 `admins` 레코드 자동 생성 |
-
-### Auth
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `AuthController.java` | `register`, `login` | 회원가입과 로그인 API |
-| `AuthService.java` | `register`, `login` | 사용자 생성, 비밀번호 검증, JWT 발급 |
-| `JwtTokenProvider.java` | `createToken`, `getUsername`, `validateToken` | JWT 생성과 검증 |
-| `JwtAuthenticationFilter.java` | `doFilterInternal` | 요청 헤더의 Bearer 토큰을 읽어 인증 객체 생성 |
-| `CustomUserDetailsService.java` | `loadUserByUsername` | Spring Security가 사용할 사용자 정보 조회 |
-
-### Travelog Posts
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `UserProfileController.java` | `profile`, `updateProfile`, `profileImage` | 마이페이지 프로필 조회, 프로필 사진/소개글 수정, 프로필 이미지 응답 |
-| `UserProfileService.java` | `getProfile`, `getUserProfile`, `updateProfile`, `getProfileImage`, `getUserProfileImage` | 사용자 프로필 저장/조회 로직 |
-| `PostController.java` | `feed`, `create`, `myPosts`, `myStats`, `adminPosts`, `like`, `comment`, `delete`, `image` | 게시물 피드, 업로드, 좋아요, 댓글, 삭제, 이미지 조회 API |
-| `PostController.java` | `update` | 게시물 설명, 장소, 카테고리 태그 수정 API |
-| `PostService.java` | `createPost`, `updatePost`, `getFeed`, `getMyPosts`, `getUserPosts`, `getAllPostsForAdmin`, `getMyStats`, `getUserStats`, `toggleLike`, `addComment`, `getPostImage`, `deletePost` | 게시물 핵심 비즈니스 로직 |
-| `PostService.java` | `registerView` | `post_views`를 사용해 사용자별 1회만 조회수 증가 |
-| `PostService.java` | `toPostResponse`, `findPost`, `normalizeOwnerId`, `normalizeText`, `normalizeCategoryTag` | 응답 변환과 내부 유틸 |
-
-### Entities
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `User.java` | 생성자, getter | 로그인 사용자 엔티티 |
-| `Admin.java` | 생성자, getter | 관리자 식별 엔티티 |
-| `Post.java` | 생성자, getter, `increaseViewCount`, `updateDetails` | 여행 게시물 엔티티와 수정 로직 |
-| `Comment.java` | 생성자, getter | 게시물 댓글 엔티티 |
-| `PostLike.java` | 생성자, getter | 게시물 좋아요 엔티티 |
-| `PostView.java` | 생성자, getter | 사용자별 게시물 조회 기록 엔티티 |
-
-### Repositories
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `UserRepository.java` | `findByUsername`, `existsByUsername` | 사용자 조회 |
-| `AdminRepository.java` | `existsByUsername` | 관리자 존재 확인 |
-| `PostRepository.java` | `findAllByOrderByCreatedAtDescIdDesc`, `findAllByOwnerIdOrderByCreatedAtDescIdDesc`, `sumViewCountByOwnerId` | 피드, 마이페이지, 총 조회수 조회 |
-| `CommentRepository.java` | `findAllByPostIdOrderByCreatedAtAscIdAsc` | 게시물별 댓글 조회 |
-| `PostLikeRepository.java` | `findByPostIdAndOwnerId`, `countByPostId`, `existsByPostIdAndOwnerId`, `deleteAllByPost` | 좋아요 토글과 카운트 |
-| `PostViewRepository.java` | `existsByPostIdAndViewerId` | 조회수 중복 증가 방지 |
-
-### DTO
-
-| 파일 | 역할 |
-| --- | --- |
-| `LoginRequest.java`, `LoginResponse.java` | 로그인 요청/응답 |
-| `RegisterRequest.java`, `RegisterResponse.java` | 회원가입 요청/응답 |
-| `AuthResponse.java` | 인증 상태 응답 |
-| `PostResponse.java` | 피드에 내려가는 게시물 응답 |
-| `PostUpdateRequest.java` | 게시물 수정 요청 |
-| `CommentCreateRequest.java` | 댓글 생성 요청 |
-| `CommentResponse.java` | 댓글 응답 |
-| `UserStatsResponse.java` | 마이페이지 통계 응답 |
-| `StoredFile.java` | 저장된 업로드 파일 정보 |
-
-### Storage
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `StorageService.java` | `store`, `storeThumbnail`, `loadAsResource`, `delete` | 파일 저장소 인터페이스 |
-| `LocalStorageService.java` | `store`, `storeThumbnail`, `loadAsResource`, `delete` | 로컬 디스크 이미지 저장/조회/삭제 |
-| `PhotoThumbnailService.java` | `createThumbnail` | 레거시 사진 API 썸네일 생성 |
-
-### Legacy Drive API
-
-아래 파일은 기존 드라이브/폴더 기능의 잔여 코드입니다. 현재 Travelog 메인 UI는 `/api/posts`를 사용하며, 아래 API는 메인 흐름에서 사용하지 않습니다.
-
-| 파일 | 역할 |
-| --- | --- |
-| `PhotoController.java`, `AdminPhotoController.java`, `ShareController.java` | 레거시 사진/폴더 API |
-| `PhotoService.java` | 레거시 사진 업로드, 폴더, 휴지통, 중복 정리 로직. EXIF 추출은 제거됨 |
-| `Photo.java`, `PhotoFolder.java`, `FolderShareLink.java` | 레거시 사진/폴더 엔티티 |
-| `PhotoRepository.java`, `PhotoFolderRepository.java`, `FolderShareLinkRepository.java` | 레거시 사진/폴더 조회 |
-| `PhotoResponse.java`, `PhotoUploadItemResponse.java`, `PhotoUploadBatchResponse.java`, `FolderResponse.java`, `FolderShareResponse.java`, `SharedFolderResponse.java`, `DuplicatePhotoGroupResponse.java`, `PhotoTagUpdateRequest.java`, `FolderCreateRequest.java`, `FolderRenameRequest.java`, `FolderOrderUpdateRequest.java`, `AdminFolderDeleteRequest.java` | 레거시 API 요청/응답 DTO |
-| `ApiExceptionHandler.java` | API 예외를 JSON 응답으로 변환 |
-| `HomeController.java` | 정적 홈 라우팅 |
-
-## 프론트엔드 파일별 역할
-
-### Entry
-
-| 파일 | 주요 메서드/컴포넌트 | 역할 |
-| --- | --- | --- |
-| `main.jsx` | `createRoot(...).render(...)` | React 앱 시작점 |
-| `App.jsx` | `App`, `handleLoginSuccess`, `handleLogout` | 로그인 세션 관리와 페이지 분기 |
-
-### Pages
-
-| 파일 | 주요 메서드/컴포넌트 | 역할 |
-| --- | --- | --- |
-| `pages/LoginPage.jsx` | `LoginPage`, `handleSubmit` | 로그인/회원가입 화면 |
-| `pages/GalleryPage.jsx` | `GalleryPage`, `PostCard`, `PostEditForm`, `PostComposer`, `CategorySelect` | Travelog 메인 피드, 마이페이지, 관리자 모드, 게시물 작성/수정, 카테고리 선택 |
-| `pages/GalleryPage.jsx` | `load`, `changeTab`, `handleCreatePost`, `handleUpdatePost`, `handleLike`, `handleComment`, `handleDelete`, `replacePost`, `handleLogoutClick` | 피드 데이터 동기화와 사용자 액션 처리 |
-| `pages/GalleryPage.jsx` | `submitComment`, `handleEditSubmit`, `handleImageChange`, `handleSubmit` | 댓글 등록, 게시물 수정, 이미지 미리보기, 게시물 등록 |
-| `pages/SharedFolderPage.jsx` | 레거시 공유 폴더 페이지 | 현재 Travelog 메인 흐름에서는 사용하지 않음 |
-
-### API
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `api/authApi.js` | `login`, `register` | 인증 API 호출 |
-| `api/profileApi.js` | `fetchProfile`, `fetchUserProfile`, `updateProfile` | 마이페이지와 다른 사용자 프로필 조회/수정 API 호출 |
-| `api/postApi.js` | `fetchFeed`, `fetchMyPosts`, `fetchUserPosts`, `fetchMyStats`, `fetchUserStats`, `fetchAdminPosts`, `createPost`, `updatePost`, `togglePostLike`, `addPostComment`, `deletePost` | Travelog 게시물 API 호출 |
-| `api/postApi.js` | `request`, `normalizePost`, `normalizePosts`, `normalizeImageUrl` | 공통 요청 처리와 이미지 URL 보정 |
-| `api/photoApi.js`, `api/shareApi.js` | 레거시 사진/공유 API 호출 | 현재 Travelog 메인 흐름에서는 사용하지 않음 |
-
-### Components
-
-| 파일 | 주요 컴포넌트/메서드 | 역할 |
-| --- | --- | --- |
-| `components/AuthImage.jsx` | `AuthImage` | JWT Authorization 헤더로 보호 이미지 로드 |
-| `components/PhotoStatus.jsx` | `PhotoStatus` | 상태 메시지 표시 |
-| `components/ConfirmModal.jsx` | `ConfirmModal` | 확인 모달 |
-| `components/admin/AdminPanel.jsx` | `AdminPanel`, `AdminPhotoFolderView` | 레거시 관리자 폴더 화면. EXIF 이미지 뷰어 제거됨 |
-| `components/admin/AdminFolderList.jsx` | `AdminFolderList` | 레거시 관리자 폴더 목록 |
-| `components/*Photo*`, `components/*Folder*`, `components/*Upload*`, `components/TrashPage.jsx`, `components/DuplicatePhotoModal.jsx`, `components/TagEditModal.jsx` | 레거시 사진 드라이브 UI | 현재 Travelog 메인 흐름에서는 사용하지 않음 |
-
-### Hooks and Utils
-
-| 파일 | 주요 메서드 | 역할 |
-| --- | --- | --- |
-| `hooks/useAutoDismissNotice.js` | `useAutoDismissNotice` | 레거시 알림 자동 닫기 훅 |
-| `utils/photoCollection.js` | `filterFolders`, `filterPhotos`, `sortFolders`, `sortPhotosByDate` | 레거시 사진/폴더 정렬과 필터 |
-
-### Styles
-
-| 파일 | 역할 |
-| --- | --- |
-| `index.css` | 전체 CSS import |
-| `styles/travel.css` | 현재 Travelog 피드 UI. 푸른색 계열 테마, 카드형 피드, 사이드바 카테고리, 마이페이지 프로필, 모바일 우측 사이드 드로어 |
-| `styles/base.css`, `layout.css`, `folders.css`, `photos.css`, `modals.css`, `admin.css`, `responsive.css` | 레거시 드라이브 UI 스타일과 공통 스타일 |
-
-## 현재 주요 흐름
-
-1. `LoginPage`에서 로그인하면 JWT, username, role이 `localStorage`에 저장됩니다.
-2. `App`이 세션을 확인하고 `GalleryPage`를 렌더링합니다.
-3. `GalleryPage`는 `/api/posts`로 전체 피드를 가져옵니다.
-4. 게시물 이미지는 `AuthImage`가 Authorization 헤더를 붙여 `/api/posts/{id}/image`에서 가져옵니다.
-5. 백엔드는 이미지 조회 시 `post_views`를 확인해서 같은 사용자의 중복 조회를 막고, 처음 볼 때만 `viewCount`를 증가시킵니다.
-6. 게시물 작성/수정 시 `categoryTag`를 태그 입력 방식으로 저장하며 기본 추천 카테고리는 `여행`, `식사`, `카페`입니다.
-7. 홈 아래 사이드바 카테고리 버튼으로 게시물을 필터링하며, `Home`은 전체 피드를 보여줍니다.
-8. 좋아요는 `/api/posts/{id}/like`에서 토글되고, 프론트에는 하트 아이콘과 숫자만 표시됩니다.
-9. 댓글은 기본으로 닫혀 있고, 댓글 아이콘을 누르면 목록과 입력창이 열립니다.
-10. 모바일에서는 메인 피드만 먼저 보이고, 우측 상단 `Menu` 버튼으로 사이드바가 오른쪽에서 열립니다.
-11. 마이페이지에서는 프로필 사진과 소개글을 인스타그램 프로필처럼 수정할 수 있습니다.
-12. 피드에서 작성자 프로필을 누르면 해당 사용자의 프로필과 게시물만 표시됩니다.
+- Hibernate SQL 로그 출력 정리
+- `POST_LIKES`, `POST_VIEWS` 중복 방지 unique 제약 추가
+- 게시물 태그 정규화 테이블 도입 검토
+- `POSTS`의 레거시 이미지/위치 컬럼 정리 검토
+- 폴더 경로 문자열 구조를 `FOLDER_ID`, `PARENT_ID` 방식으로 개선 검토
