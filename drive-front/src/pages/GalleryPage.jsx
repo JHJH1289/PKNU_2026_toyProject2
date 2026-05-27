@@ -28,7 +28,7 @@ const TABS = {
   admin: "admin",
 };
 
-const DEFAULT_CATEGORIES = ["\uC5EC\uD589", "\uC2DD\uC0AC", "\uCE74\uD398"];
+const DEFAULT_CATEGORIES = ["\uC5EC\uD589", "\uCE74\uD398", "\uC2DD\uC0AC"];
 const MAX_POST_IMAGES = 10;
 
 export default function GalleryPage({
@@ -425,7 +425,8 @@ export default function GalleryPage({
                 type="button"
                 className={
                   categoryDropdownOpen ||
-                  (tab === TABS.feed && extraCategories.includes(categoryFilter))
+                  (tab === TABS.feed &&
+                    extraCategories.includes(categoryFilter))
                     ? "active"
                     : ""
                 }
@@ -435,38 +436,35 @@ export default function GalleryPage({
                 More tags
               </button>
               {categoryDropdownOpen && (
-              <div className="travel-category-dropdown-panel">
-                    <input
-                      type="search"
-                      value={categorySearch}
-                      onChange={(event) =>
-                        setCategorySearch(event.target.value)
-                      }
-                      placeholder="태그 검색"
-                      autoFocus
-                    />
-                    <div className="travel-category-dropdown-list">
-                      {filteredExtraCategories.length > 0 ? (
-                        filteredExtraCategories.map((category) => (
-                          <button
-                            key={category}
-                            type="button"
-                            className={
-                              tab === TABS.feed &&
-                              categoryFilter === category
-                                ? "active"
-                                : ""
-                            }
-                            onClick={() => selectFeedCategory(category)}
-                          >
-                            #{category}
-                          </button>
-                        ))
-                      ) : (
-                        <p>No tags found.</p>
-                      )}
-                    </div>
+                <div className="travel-category-dropdown-panel">
+                  <input
+                    type="search"
+                    value={categorySearch}
+                    onChange={(event) => setCategorySearch(event.target.value)}
+                    placeholder="태그 검색"
+                    autoFocus
+                  />
+                  <div className="travel-category-dropdown-list">
+                    {filteredExtraCategories.length > 0 ? (
+                      filteredExtraCategories.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          className={
+                            tab === TABS.feed && categoryFilter === category
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() => selectFeedCategory(category)}
+                        >
+                          #{category}
+                        </button>
+                      ))
+                    ) : (
+                      <p>No tags found.</p>
+                    )}
                   </div>
+                </div>
               )}
             </div>
           </div>
@@ -547,7 +545,14 @@ export default function GalleryPage({
           />
         )}
 
-        {tab === TABS.me && <Map posts={posts} />}
+        {tab === TABS.me && (
+          <Map
+            posts={posts}
+            showCategoryLegend
+            showMarkerLabels={false}
+            showRouteLines={false}
+          />
+        )}
 
         {status && <div className="travel-status">{status}</div>}
         {loading && <div className="travel-status">Loading...</div>}
@@ -1026,6 +1031,7 @@ function PostEditForm({ post, onCancel, onSubmit }) {
       <Map
         selectable
         selectedLocations={locations}
+        markerCategoryTag={categoryTag}
         onLocationSelect={handleLocationSelect}
         onLocationRemove={handleLocationRemove}
         onLocationRename={handleLocationRename}
@@ -1171,6 +1177,7 @@ function PostComposer({ onClose, onSubmit }) {
         <Map
           selectable
           selectedLocations={locations}
+          markerCategoryTag={categoryTag}
           onLocationSelect={handleLocationSelect}
           onLocationRemove={handleLocationRemove}
           onLocationRename={handleLocationRename}

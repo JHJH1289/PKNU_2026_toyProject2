@@ -4,8 +4,23 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { latitude: 37.5666103, longitude: 126.9783882 };
 const ROUTE_LINE_COLOR = "#1d9bf0";
 const ROUTE_LINE_SHADOW = "#ffffff";
-const ROUTE_MARKER_FILL = "#1d9bf0";
 const ROUTE_MARKER_STROKE = "#ffffff";
+const MARKER_PIN_PATH =
+  "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z";
+const DEFAULT_CATEGORY = "여행";
+const DEFAULT_CATEGORY_ORDER = ["여행", "카페", "식사"];
+const CATEGORY_MARKER_COLORS = {
+  여행: "#1d9bf0",
+  카페: "#a855f7",
+  식사: "#f97316",
+  more: "#10b981",
+};
+const CATEGORY_LEGEND_ITEMS = [
+  { key: "여행", label: "여행", color: CATEGORY_MARKER_COLORS.여행 },
+  { key: "카페", label: "카페", color: CATEGORY_MARKER_COLORS.카페 },
+  { key: "식사", label: "식사", color: CATEGORY_MARKER_COLORS.식사 },
+  { key: "more", label: "More tags", color: CATEGORY_MARKER_COLORS.more },
+];
 let googleMapsPromise;
 
 function loadGoogleMaps() {
@@ -56,6 +71,34 @@ function toLatLng(position) {
   return { lat: position.latitude, lng: position.longitude };
 }
 
+function splitCategoryTags(value) {
+  if (!value) return [DEFAULT_CATEGORY];
+
+  const tags = String(value)
+    .split(/[,#\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+  return tags.length ? tags : [DEFAULT_CATEGORY];
+}
+
+function getMarkerCategory(categoryTag) {
+  const [primaryTag] = splitCategoryTags(categoryTag);
+  return DEFAULT_CATEGORY_ORDER.includes(primaryTag) ? primaryTag : "more";
+}
+
+function getMarkerColor(categoryTag) {
+  return (
+    CATEGORY_MARKER_COLORS[getMarkerCategory(categoryTag)] ||
+    CATEGORY_MARKER_COLORS.more
+  );
+}
+
+function getMarkerCategoryLabel(categoryTag) {
+  const category = getMarkerCategory(categoryTag);
+  return category === "more" ? "More tags" : category;
+}
+
 function getLocationAddress(location) {
   return (
     location?.address ||
@@ -96,6 +139,10 @@ export default function Map({
   selectedLocations = [],
   locationName = "",
   title,
+  markerCategoryTag = DEFAULT_CATEGORY,
+  showCategoryLegend = false,
+  showMarkerLabels = true,
+  showRouteLines = true,
   onLocationSelect,
   onLocationRemove,
   onLocationRename,
@@ -126,10 +173,13 @@ export default function Map({
             .map((location) => ({
               ...location,
               caption: post.caption,
+              categoryTag: post.categoryTag,
             }));
         }
 
-        return hasCoordinates(post) ? [post] : [];
+        return hasCoordinates(post)
+          ? [{ ...post, categoryTag: post.categoryTag }]
+          : [];
       }),
     [posts],
   );
@@ -147,6 +197,7 @@ export default function Map({
           return locations.map((location) => ({
             ...location,
             caption: post.caption,
+            categoryTag: post.categoryTag,
           }));
         })
         .filter((locations) => locations.length > 1),
@@ -234,7 +285,7 @@ export default function Map({
     }
 
     function createRouteLine(path) {
-      if (path.length < 2) return;
+      if (!showRouteLines || path.length < 2) return;
 
       const shadowLine = new maps.Polyline({
         path,
@@ -259,25 +310,41 @@ export default function Map({
       routeLinesRef.current.push(shadowLine, routeLine);
     }
 
-    function createRouteMarker(location, index, total, titleFallback) {
+    function createRouteMarker(
+      location,
+      index,
+      total,
+      titleFallback,
+      categoryTag = markerCategoryTag,
+    ) {
       const position = toLatLng(location);
+      const markerColor = getMarkerColor(location.categoryTag || categoryTag);
+      const titleText =
+        location.locationName || location.caption || titleFallback;
+      const categoryLabel = getMarkerCategoryLabel(
+        location.categoryTag || categoryTag,
+      );
       const marker = new maps.Marker({
         map: mapRef.current,
         position,
-        title: location.locationName || location.caption || titleFallback,
-        label: {
-          text: String(index + 1),
-          color: "#ffffff",
-          fontSize: "12px",
-          fontWeight: "800",
-        },
+        title: `${titleText} · ${categoryLabel}`,
+        label: showMarkerLabels
+          ? {
+              text: String(index + 1),
+              color: "#ffffff",
+              fontSize: total > 9 ? "10px" : "11px",
+              fontWeight: "800",
+            }
+          : undefined,
         icon: {
-          path: maps.SymbolPath.CIRCLE,
-          scale: total > 9 ? 13 : 12,
-          fillColor: ROUTE_MARKER_FILL,
-          fillOpacity: 0.95,
+          path: MARKER_PIN_PATH,
+          scale: showMarkerLabels ? 1.32 : 1.18,
+          fillColor: markerColor,
+          fillOpacity: 0.96,
           strokeColor: ROUTE_MARKER_STROKE,
-          strokeWeight: 3,
+          strokeWeight: 2,
+          anchor: new maps.Point(12, 22),
+          labelOrigin: new maps.Point(12, 9),
         },
         zIndex: 5,
       });
@@ -374,9 +441,12 @@ export default function Map({
     currentPosition,
     locationName,
     mappedPosts,
+    markerCategoryTag,
     maps,
     postRouteGroups,
     selectable,
+    showMarkerLabels,
+    showRouteLines,
     selectedLocations,
     selectedPosition,
   ]);
@@ -608,6 +678,16 @@ export default function Map({
           </div>
         )}
       </div>
+      {showCategoryLegend && !selectable && (
+        <div className="travel-map-legend" aria-label="Map marker categories">
+          {CATEGORY_LEGEND_ITEMS.map((item) => (
+            <span key={item.key}>
+              <i style={{ backgroundColor: item.color }} aria-hidden="true" />
+              {item.label}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="travel-map-canvas" ref={mapElementRef}>
         {status && <span>{status}</span>}
         {!status && !mappedPosts.length && !selectable && (
