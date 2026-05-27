@@ -417,57 +417,37 @@ export default function GalleryPage({
               </button>
             ))}
 
-            {extraCategories.length > 0 && (
-              <div className="travel-category-dropdown">
-                <button
-                  type="button"
-                  className={
-                    categoryDropdownOpen ||
-                    (tab === TABS.feed &&
-                      extraCategories.includes(categoryFilter))
-                      ? "active"
-                      : ""
-                  }
-                  onClick={() =>
-                    setCategoryDropdownOpen((current) => !current)
-                  }
-                  aria-expanded={categoryDropdownOpen}
-                >
-                  More tags
-                </button>
-                {categoryDropdownOpen && (
-                  <div className="travel-category-dropdown-panel">
-                    <input
-                      type="search"
-                      value={categorySearch}
-                      onChange={(event) =>
-                        setCategorySearch(event.target.value)
-                      }
-                      placeholder="태그 검색"
-                      autoFocus
-                    />
-                    <div className="travel-category-dropdown-list">
-                      {filteredExtraCategories.length > 0 ? (
-                        filteredExtraCategories.map((category) => (
-                          <button
-                            key={category}
-                            type="button"
-                            className={
-                              tab === TABS.feed && categoryFilter === category
-                                ? "active"
-                                : ""
-                            }
-                            onClick={() => selectFeedCategory(category)}
-                          >
-                            #{category}
-                          </button>
-                        ))
-                      ) : (
-                        <p>No tags found.</p>
-                      )}
-                    </div>
-                  </div>
+            <div className="travel-category-dropdown">
+              <div className="travel-category-dropdown-panel">
+                <input
+                  type="search"
+                  value={categorySearch}
+                  onChange={(event) => setCategorySearch(event.target.value)}
+                  placeholder="태그 검색"
+                  autoFocus
+                />
+                <div className="travel-category-dropdown-list">
+                  {filteredExtraCategories.length > 0 ? (
+                    filteredExtraCategories.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        className={
+                          tab === TABS.feed && categoryFilter === category
+                            ? "active"
+                            : ""
+                        }
+                        onClick={() => selectFeedCategory(category)}
+                      >
+                        #{category}
+                      </button>
+                    ))
+                  ) : (
+                    <p>No tags found.</p>
+                  )}
+                </div>
               </div>
+            </div>
           </div>
 
           {isLoggedIn && (
