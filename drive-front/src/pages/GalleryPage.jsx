@@ -51,6 +51,7 @@ export default function GalleryPage({
   const [composerOpen, setComposerOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [categorySearch, setCategorySearch] = useState("");
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isLoggedIn = Boolean(username);
@@ -98,6 +99,7 @@ export default function GalleryPage({
   function selectFeedCategory(category) {
     setTab(TABS.feed);
     setCategoryFilter(category);
+    setCategoryDropdownOpen(false);
     setCategorySearch("");
     setSidebarOpen(false);
     load(TABS.feed);
@@ -174,6 +176,7 @@ export default function GalleryPage({
     setTab(nextTab);
     setComposerOpen(false);
     setCategoryFilter("All");
+    setCategoryDropdownOpen(false);
     setCategorySearch("");
     setSidebarOpen(false);
     load(nextTab);
@@ -418,35 +421,51 @@ export default function GalleryPage({
             ))}
 
             <div className="travel-category-dropdown">
-              <div className="travel-category-dropdown-panel">
-                <input
-                  type="search"
-                  value={categorySearch}
-                  onChange={(event) => setCategorySearch(event.target.value)}
-                  placeholder="태그 검색"
-                  autoFocus
-                />
-                <div className="travel-category-dropdown-list">
-                  {filteredExtraCategories.length > 0 ? (
-                    filteredExtraCategories.map((category) => (
-                      <button
-                        key={category}
-                        type="button"
-                        className={
-                          tab === TABS.feed && categoryFilter === category
-                            ? "active"
-                            : ""
-                        }
-                        onClick={() => selectFeedCategory(category)}
-                      >
-                        #{category}
-                      </button>
-                    ))
-                  ) : (
-                    <p>No tags found.</p>
-                  )}
+              <button
+                type="button"
+                className={
+                  categoryDropdownOpen ||
+                  (tab === TABS.feed &&
+                    extraCategories.includes(categoryFilter))
+                    ? "active"
+                    : ""
+                }
+                onClick={() => setCategoryDropdownOpen((current) => !current)}
+                aria-expanded={categoryDropdownOpen}
+              >
+                More tags
+              </button>
+              {categoryDropdownOpen && (
+                <div className="travel-category-dropdown-panel">
+                  <input
+                    type="search"
+                    value={categorySearch}
+                    onChange={(event) => setCategorySearch(event.target.value)}
+                    placeholder="태그 검색"
+                    autoFocus
+                  />
+                  <div className="travel-category-dropdown-list">
+                    {filteredExtraCategories.length > 0 ? (
+                      filteredExtraCategories.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          className={
+                            tab === TABS.feed && categoryFilter === category
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() => selectFeedCategory(category)}
+                        >
+                          #{category}
+                        </button>
+                      ))
+                    ) : (
+                      <p>No tags found.</p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
