@@ -1,8 +1,4 @@
 ﻿/* Photo gallery */
-.gallery {
-  margin-top: 36px;
-}
-
 .photo-date-list {
   display: flex;
   flex-direction: column;
@@ -294,8 +290,7 @@
   overflow-wrap: anywhere;
 }
 
-.delete-btn,
-.card-action-btn {
+.delete-btn {
   width: 100%;
   margin-top: 10px;
   padding: 10px 12px;

@@ -164,7 +164,7 @@ function AdminPhotoFolderView({ labels, folder, photos, onBack, onDeletePhoto })
         <p className="admin-empty">{labels.emptyPhotos}</p>
       ) : (
         <div className="admin-photo-grid">
-          {photos.map((photo, index) => (
+          {photos.map((photo) => (
             <div className="admin-photo-card" key={photo.id}>
               <AuthImage
                 className="admin-photo-image"

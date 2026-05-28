@@ -344,21 +344,42 @@ export default function GalleryPage({
   }
 
   useEffect(() => {
+    let cancelled = false;
+
     setProfileUsername(username || "");
     setTab(TABS.feed);
     setCategoryFilter("All");
-    load(TABS.feed);
+    setLoading(true);
+    setStatus("");
+
+    fetchFeed()
+      .then((feedPosts) => {
+        if (!cancelled) setPosts(feedPosts);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setStatus(error.message || "Failed to load posts.");
+          setPosts([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     if (isLoggedIn) {
       fetchProfile()
         .then((nextProfile) => {
-          if (nextProfile) setProfile(nextProfile);
+          if (!cancelled && nextProfile) setProfile(nextProfile);
         })
         .catch(() => {});
     } else {
       setProfile({ username: "Guest", bio: "", profileImageUrl: "" });
     }
-  }, [username]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, username]);
 
   useEffect(() => {
     if (!composerOpen) return;

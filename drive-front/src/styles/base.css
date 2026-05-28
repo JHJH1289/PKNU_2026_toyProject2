@@ -77,13 +77,11 @@ h2 {
   color: #0b3f86;
 }
 
-.app,
 .auth-page {
   min-height: 100vh;
   padding: 36px 20px;
 }
 
-.wrap,
 .auth-card {
   width: min(1280px, 100%);
   margin: 0 auto;
@@ -98,7 +96,6 @@ h2 {
   width: min(520px, 100%);
 }
 
-.subtitle,
 .auth-subtitle,
 .summary {
   color: var(--muted);
