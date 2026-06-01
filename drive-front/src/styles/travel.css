@@ -210,6 +210,11 @@
   display: none;
 }
 
+.travel-mobile-menu-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 .travel-mobile-create-btn {
   display: none;
 }
@@ -315,6 +320,9 @@
 }
 
 .travel-menu-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
   min-width: 36px;
   height: 32px;
   border: 0;
@@ -325,6 +333,11 @@
   font-weight: 800;
   box-shadow: inset 0 0 0 1px var(--travel-line);
   line-height: 1;
+}
+
+.travel-menu-btn svg {
+  width: 19px;
+  height: 19px;
 }
 
 .travel-menu-dropdown {
@@ -408,6 +421,7 @@
   backdrop-filter: blur(8px);
 }
 
+.travel-post-map-slide .travel-map-canvas-wrap,
 .travel-post-map-slide .travel-map-canvas {
   width: 100%;
   height: 100%;
@@ -548,18 +562,31 @@
 }
 
 .travel-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 27px;
   line-height: 1;
   cursor: pointer;
   color: var(--travel-ink);
 }
 
 .travel-icon-btn.comment {
-  font-size: 20px;
   margin-left: 8px;
+}
+
+.travel-icon-btn svg {
+  width: 25px;
+  height: 25px;
+  display: block;
+}
+
+.travel-icon-btn.comment svg {
+  width: 24px;
+  height: 24px;
 }
 
 .travel-icon-btn.liked {
@@ -877,6 +904,11 @@
   line-height: 1;
 }
 
+.travel-menu-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
 .travel-tag-add-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1013,7 +1045,7 @@
   opacity: 0.55;
 }
 
-.travel-map-canvas {
+.travel-map-canvas-wrap {
   position: relative;
   min-height: 240px;
   overflow: hidden;
@@ -1022,17 +1054,26 @@
   background: var(--travel-blue-soft);
 }
 
+.travel-map-canvas {
+  width: 100%;
+  min-height: 240px;
+  height: 100%;
+}
+
+.travel-map-picker .travel-map-canvas-wrap,
 .travel-map-picker .travel-map-canvas {
   min-height: 220px;
 }
 
-.travel-map-canvas > span {
+.travel-map-overlay {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   padding: 16px;
   color: var(--travel-muted);
+  background: var(--travel-blue-soft);
+  pointer-events: none;
   text-align: center;
 }
 
@@ -1329,7 +1370,9 @@
 }
 
 .travel-recommend-search button,
-.travel-recommend-plan-btn {
+.travel-recommend-plan-btn,
+.travel-recommend-add-place,
+.travel-recommend-view-more {
   border: 0;
   border-radius: 8px;
   padding: 10px 16px;
@@ -1341,6 +1384,18 @@
 
 .travel-recommend-search button:disabled,
 .travel-recommend-plan-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.travel-recommend-view-more {
+  justify-self: center;
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark);
+  cursor: pointer;
+}
+
+.travel-recommend-view-more:disabled {
   cursor: default;
   opacity: 0.55;
 }
@@ -1376,13 +1431,120 @@
   font-size: 13px;
 }
 
+.travel-recommend-food-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.travel-recommend-food-controls label {
+  display: grid;
+  gap: 5px;
+}
+
+.travel-recommend-food-controls span {
+  color: var(--travel-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.travel-recommend-food-controls select {
+  width: 100%;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--travel-ink);
+  font: inherit;
+  padding: 10px 11px;
+}
+
+.travel-recommend-food-controls button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 10px 13px;
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark);
+  font: inherit;
+  font-weight: 800;
+}
+
+.travel-recommend-food-controls button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .travel-recommend-map-slot {
   display: grid;
   gap: 8px;
 }
 
+.travel-planner-stop {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.travel-planner-stop-head,
+.travel-planner-restaurant-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.travel-planner-stop-head h3 {
+  margin: 0;
+  color: var(--travel-blue-dark);
+  font-size: 16px;
+}
+
+.travel-planner-stop-head p {
+  margin: 3px 0 0;
+  color: var(--travel-muted);
+  font-size: 13px;
+}
+
+.travel-planner-stop-head button,
+.travel-planner-restaurant-row button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 8px 11px;
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.travel-planner-restaurant-row {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.travel-planner-restaurant-row button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .travel-recommend-section {
   display: grid;
+  gap: 10px;
+}
+
+.travel-recommend-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 
@@ -1392,15 +1554,25 @@
   font-size: 16px;
 }
 
+.travel-recommend-section-head select {
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--travel-ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
 .travel-recommend-attractions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 8px;
 }
 
 .travel-recommend-attraction {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto 76px minmax(0, 1fr);
   gap: 9px;
   align-items: start;
   padding: 12px;
@@ -1411,6 +1583,31 @@
 
 .travel-recommend-attraction input {
   margin-top: 3px;
+}
+
+.travel-recommend-place-image {
+  width: 76px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--travel-blue-soft);
+  display: grid;
+  place-items: center;
+}
+
+.travel-recommend-place-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.travel-recommend-place-image span {
+  padding: 8px;
+  color: var(--travel-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
 }
 
 .travel-recommend-attraction strong,

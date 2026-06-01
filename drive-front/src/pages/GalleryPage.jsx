@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   fetchProfile,
   fetchUserProfile,
@@ -51,6 +51,27 @@ const RECOMMEND_THEMES = [
   "\uC57C\uACBD",
   "\uAC00\uC871",
 ];
+const RESTAURANT_CUISINES = [
+  "\uC804\uCCB4",
+  "\uD55C\uC2DD",
+  "\uC911\uC2DD",
+  "\uC77C\uC2DD",
+  "\uC591\uC2DD",
+];
+const RESTAURANT_PRICE_FILTERS = [
+  "\uC804\uCCB4",
+  "10000\uC6D0 \uC774\uC0C1",
+  "20000\uC6D0 \uC774\uC0C1",
+  "30000\uC6D0 \uC774\uC0C1",
+  "50000\uC6D0 \uC774\uC0C1",
+];
+const RECOMMEND_SORT_OPTIONS = [
+  { value: "rating", label: "\uBCC4\uC810\uC21C" },
+  { value: "reviews", label: "\uD6C4\uAE30 \uB9CE\uC740 \uC21C" },
+];
+const RECOMMEND_VISIBLE_STEP = 6;
+const RECOMMEND_FETCH_STEP = 20;
+const RECOMMEND_MAX_RESULTS = 60;
 
 export default function GalleryPage({
   username,
@@ -80,7 +101,7 @@ export default function GalleryPage({
   const title = useMemo(() => {
     if (tab === TABS.me)
       return profileUsername === username ? "My Page" : `${profileUsername}`;
-    if (tab === TABS.recommend) return "Recomand";
+    if (tab === TABS.recommend) return "Travel Planner";
     if (tab === TABS.admin) return "Admin Mode";
     return "Travel Feed";
   }, [profileUsername, tab, username]);
@@ -128,7 +149,7 @@ export default function GalleryPage({
   }
 
   function requireLogin() {
-    setStatus("로그인이 필요한 기능입니다. 먼저 로그인해주세요.");
+    setStatus("Login is required. Please sign in first.");
     setComposerOpen(false);
     onLoginClick?.();
   }
@@ -484,7 +505,7 @@ export default function GalleryPage({
                     type="search"
                     value={categorySearch}
                     onChange={(event) => setCategorySearch(event.target.value)}
-                    placeholder="태그 검색"
+                    placeholder="Search tags"
                     autoFocus
                   />
                   <div className="travel-category-dropdown-list">
@@ -527,7 +548,7 @@ export default function GalleryPage({
               type="button"
               onClick={() => changeTab(TABS.recommend)}
             >
-              Recomand
+              Travel Planner
             </button>
           )}
           {isAdmin && (
@@ -581,8 +602,9 @@ export default function GalleryPage({
               className="travel-mobile-menu-btn"
               type="button"
               onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
             >
-              ☰
+              <MenuIcon />
             </button>
           </div>
         </header>
@@ -608,33 +630,39 @@ export default function GalleryPage({
           />
         )}
 
-        {status && <div className="travel-status">{status}</div>}
-        {loading && <div className="travel-status">Loading...</div>}
+        {tab !== TABS.recommend && (
+          <>
+            {status && <div className="travel-status">{status}</div>}
+            {loading && <div className="travel-status">Loading...</div>}
 
-        <section className="travel-feed">
-          {!loading && visiblePosts.length === 0 && (
-            <div className="travel-empty">No posts yet.</div>
-          )}
+            <section className="travel-feed">
+              {!loading && visiblePosts.length === 0 && (
+                <div className="travel-empty">No posts yet.</div>
+              )}
 
-          {visiblePosts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              currentUsername={username || "Guest"}
-              isLoggedIn={isLoggedIn}
-              adminMode={tab === TABS.admin}
-              canEdit={isLoggedIn && post.ownerId === username}
-              canDelete={isAdmin || (isLoggedIn && post.ownerId === username)}
-              onLike={handleLike}
-              onComment={handleComment}
-              onUpdateComment={handleUpdateComment}
-              onDeleteComment={handleDeleteComment}
-              onDelete={handleDelete}
-              onUpdate={handleUpdatePost}
-              onOpenProfile={openUserProfile}
-            />
-          ))}
-        </section>
+              {visiblePosts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  currentUsername={username || "Guest"}
+                  isLoggedIn={isLoggedIn}
+                  adminMode={tab === TABS.admin}
+                  canEdit={isLoggedIn && post.ownerId === username}
+                  canDelete={
+                    isAdmin || (isLoggedIn && post.ownerId === username)
+                  }
+                  onLike={handleLike}
+                  onComment={handleComment}
+                  onUpdateComment={handleUpdateComment}
+                  onDeleteComment={handleDeleteComment}
+                  onDelete={handleDelete}
+                  onUpdate={handleUpdatePost}
+                  onOpenProfile={openUserProfile}
+                />
+              ))}
+            </section>
+          </>
+        )}
       </main>
 
       {composerOpen && (
@@ -655,17 +683,15 @@ export default function GalleryPage({
 
 function RecommendPanel() {
   const [region, setRegion] = useState("");
-  const [themes, setThemes] = useState([RECOMMEND_THEMES[0]]);
-  const [attractions, setAttractions] = useState([]);
-  const [restaurants, setRestaurants] = useState([]);
-  const [selectedPlaceIds, setSelectedPlaceIds] = useState([]);
+  const [themes, setThemes] = useState([]);
+  const [cuisine, setCuisine] = useState(RESTAURANT_CUISINES[0]);
+  const [priceFilter, setPriceFilter] = useState(RESTAURANT_PRICE_FILTERS[0]);
+  const [stops, setStops] = useState([]);
   const [plan, setPlan] = useState(null);
   const [status, setStatus] = useState("");
-  const [loadingAttractions, setLoadingAttractions] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(false);
-  const selectedPlaces = [...attractions, ...restaurants].filter((place) =>
-    selectedPlaceIds.includes(place.id),
-  );
+  const working = loadingPlan || stops.some((stop) => stop.loadingAttractions || stop.loadingRestaurants);
+  const selectedPlaces = stops.flatMap((stop) => getStopRoutePlaces(stop));
   const routeLocations = selectedPlaces
     .filter(
       (place) =>
@@ -679,6 +705,18 @@ function RecommendPanel() {
       categoryTag: place.kind === "restaurant" ? "맛집" : "관광",
     }));
 
+  function updateStop(stopId, updater) {
+    setStops((current) =>
+      current.map((stop) =>
+        stop.id === stopId
+          ? typeof updater === "function"
+            ? updater(stop)
+            : { ...stop, ...updater }
+          : stop,
+      ),
+    );
+  }
+
   function toggleTheme(theme) {
     setThemes((current) =>
       current.includes(theme)
@@ -687,38 +725,122 @@ function RecommendPanel() {
     );
   }
 
-  function togglePlace(id) {
-    setSelectedPlaceIds((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id],
-    );
+  function handleAddStop() {
+    setStops((current) => [...current, createPlannerStop(region.trim())]);
+    setPlan(null);
   }
 
-  async function handleFindAttractions(event) {
+  function handleRemoveStop(stopId) {
+    setStops((current) =>
+      current.length > 1
+        ? current.filter((stop) => stop.id !== stopId)
+        : current,
+    );
+    setPlan(null);
+  }
+
+  function handleSelectAttraction(stopId, attractionId) {
+    updateStop(stopId, (stop) => ({
+      ...stop,
+      selectedAttractionId:
+        stop.selectedAttractionId === attractionId ? "" : attractionId,
+      restaurants:
+        stop.selectedAttractionId === attractionId ? stop.restaurants : [],
+      selectedRestaurantIds:
+        stop.selectedAttractionId === attractionId
+          ? stop.selectedRestaurantIds
+          : [],
+      status:
+        stop.selectedAttractionId === attractionId
+          ? "Select a tourist spot."
+          : "Tourist spot added to the route.",
+    }));
+    setPlan(null);
+  }
+
+  function handleToggleRestaurant(stopId, restaurantId) {
+    updateStop(stopId, (stop) => ({
+      ...stop,
+      selectedRestaurantIds: stop.selectedRestaurantIds.includes(restaurantId)
+        ? stop.selectedRestaurantIds.filter((id) => id !== restaurantId)
+        : [...stop.selectedRestaurantIds, restaurantId],
+    }));
+    setPlan(null);
+  }
+
+  async function handleFindAttractions(event, stopId) {
     event.preventDefault();
-    if (!region.trim() || loadingAttractions) return;
+    const stop = stops.find((item) => item.id === stopId);
+    const query = (stop?.attractionQuery || region).trim();
+    if (!stop || !query || stop.loadingAttractions) return;
 
     try {
-      setLoadingAttractions(true);
-      setStatus("Searching tourist attractions and nearby restaurants.");
+      updateStop(stopId, {
+        loadingAttractions: true,
+        status: "Searching tourist spots.",
+      });
       setPlan(null);
-      const nextAttractions = await searchGooglePlaces({
-        region: region.trim(),
+      let nextAttractions = await searchGooglePlaces({
+        region: query,
         themes,
         keyword: "관광지",
-        limit: 10,
+        limit: 20,
       });
+
+      if (nextAttractions.length === 0 && themes.length > 0) {
+        nextAttractions = await searchGooglePlaces({
+          region: query,
+          themes: [],
+          keyword: "관광지",
+          limit: 20,
+        });
+      }
       const attractionItems = nextAttractions.map((item) => ({
         ...item,
         kind: "attraction",
         theme: "관광",
       }));
+
+      updateStop(stopId, {
+        attractions: attractionItems,
+        restaurants: [],
+        selectedAttractionId: "",
+        selectedRestaurantIds: [],
+        attractionVisibleCount: RECOMMEND_VISIBLE_STEP,
+        restaurantVisibleCount: RECOMMEND_VISIBLE_STEP,
+        status:
+          attractionItems.length > 0
+            ? "Select one tourist spot to add it to the route."
+            : "No tourist spots were found. Try another area.",
+      });
+    } catch (error) {
+      updateStop(stopId, {
+        status: error.message || "Failed to find tourist spots.",
+      });
+    } finally {
+      updateStop(stopId, { loadingAttractions: false });
+    }
+  }
+
+  async function handleFindRestaurants(stopId) {
+    const stop = stops.find((item) => item.id === stopId);
+    const selectedAttraction = stop?.attractions.find(
+      (place) => place.id === stop.selectedAttractionId,
+    );
+    if (!stop || !selectedAttraction || stop.loadingRestaurants) return;
+
+    try {
+      updateStop(stopId, {
+        loadingRestaurants: true,
+        status: "Searching restaurants before the next stop.",
+      });
       const restaurantItems = (
         await searchRestaurantsNearPlaces({
-          places: attractionItems,
-          region: region.trim(),
-          limit: 10,
+          places: [selectedAttraction],
+          region: selectedAttraction.name || region.trim(),
+          cuisine,
+          priceFilter,
+          limit: 20,
         })
       ).map((item) => ({
         ...item,
@@ -726,46 +848,176 @@ function RecommendPanel() {
         theme: "맛집",
       }));
 
-      setAttractions(attractionItems);
-      setRestaurants(restaurantItems);
-      setSelectedPlaceIds(
-        [...attractionItems, ...restaurantItems]
-          .map((item) => item.id)
-          .filter(Boolean),
-      );
-      setStatus(
-        attractionItems.length + restaurantItems.length > 0
-          ? "Select tourist spots and restaurants to include in your plan."
-          : "No places were found. Try another region, attraction, or theme.",
-      );
+      updateStop(stopId, {
+        restaurants: restaurantItems,
+        selectedRestaurantIds: [],
+        restaurantVisibleCount: RECOMMEND_VISIBLE_STEP,
+        status:
+          restaurantItems.length > 0
+            ? "Select restaurants to place them before the next tourist spot."
+            : "No restaurants were found nearby.",
+      });
     } catch (error) {
-      setStatus(error.message || "Failed to find attractions.");
+      updateStop(stopId, {
+        status: error.message || "Failed to find restaurants.",
+      });
     } finally {
-      setLoadingAttractions(false);
+      updateStop(stopId, { loadingRestaurants: false });
+    }
+  }
+
+  async function handleViewMoreAttractions(stopId) {
+    const stop = stops.find((item) => item.id === stopId);
+    if (!stop || stop.loadingAttractions) return;
+
+    if (stop.attractionVisibleCount < stop.attractions.length) {
+      updateStop(stopId, (currentStop) => ({
+        ...currentStop,
+        attractionVisibleCount:
+          currentStop.attractionVisibleCount + RECOMMEND_VISIBLE_STEP,
+      }));
+      return;
+    }
+
+    if (stop.attractions.length >= RECOMMEND_MAX_RESULTS) return;
+
+    const query = (stop.attractionQuery || region).trim();
+    if (!query) return;
+
+    try {
+      updateStop(stopId, {
+        loadingAttractions: true,
+        status: "Searching more tourist spots.",
+      });
+      const nextLimit = Math.min(
+        stop.attractions.length + RECOMMEND_FETCH_STEP,
+        RECOMMEND_MAX_RESULTS,
+      );
+      let nextAttractions = await searchGooglePlaces({
+        region: query,
+        themes,
+        keyword: "관광지",
+        limit: nextLimit,
+      });
+
+      if (nextAttractions.length === 0 && themes.length > 0) {
+        nextAttractions = await searchGooglePlaces({
+          region: query,
+          themes: [],
+          keyword: "관광지",
+          limit: nextLimit,
+        });
+      }
+
+      const attractionItems = nextAttractions.map((item) => ({
+        ...item,
+        kind: "attraction",
+        theme: "관광",
+      }));
+      const mergedAttractions = mergePlacesById(
+        stop.attractions,
+        attractionItems,
+      );
+
+      updateStop(stopId, {
+        attractions: mergedAttractions,
+        attractionVisibleCount:
+          stop.attractionVisibleCount + RECOMMEND_VISIBLE_STEP,
+        status:
+          mergedAttractions.length > stop.attractions.length
+            ? "More tourist spots were added."
+            : "No more new tourist spots were found.",
+      });
+    } catch (error) {
+      updateStop(stopId, {
+        status: error.message || "Failed to find more tourist spots.",
+      });
+    } finally {
+      updateStop(stopId, { loadingAttractions: false });
+    }
+  }
+
+  async function handleViewMoreRestaurants(stopId) {
+    const stop = stops.find((item) => item.id === stopId);
+    const selectedAttraction = stop?.attractions.find(
+      (place) => place.id === stop.selectedAttractionId,
+    );
+    if (!stop || !selectedAttraction || stop.loadingRestaurants) return;
+
+    if (stop.restaurantVisibleCount < stop.restaurants.length) {
+      updateStop(stopId, (currentStop) => ({
+        ...currentStop,
+        restaurantVisibleCount:
+          currentStop.restaurantVisibleCount + RECOMMEND_VISIBLE_STEP,
+      }));
+      return;
+    }
+
+    if (stop.restaurants.length >= RECOMMEND_MAX_RESULTS) return;
+
+    try {
+      updateStop(stopId, {
+        loadingRestaurants: true,
+        status: "Searching more restaurants.",
+      });
+      const nextLimit = Math.min(
+        stop.restaurants.length + RECOMMEND_FETCH_STEP,
+        RECOMMEND_MAX_RESULTS,
+      );
+      const restaurantItems = (
+        await searchRestaurantsNearPlaces({
+          places: [selectedAttraction],
+          region: selectedAttraction.name || region.trim(),
+          cuisine,
+          priceFilter,
+          limit: nextLimit,
+        })
+      ).map((item) => ({
+        ...item,
+        kind: "restaurant",
+        theme: "맛집",
+      }));
+      const mergedRestaurants = mergePlacesById(
+        stop.restaurants,
+        restaurantItems,
+      );
+
+      updateStop(stopId, {
+        restaurants: mergedRestaurants,
+        restaurantVisibleCount:
+          stop.restaurantVisibleCount + RECOMMEND_VISIBLE_STEP,
+        status:
+          mergedRestaurants.length > stop.restaurants.length
+            ? "More restaurants were added."
+            : "No more new restaurants were found nearby.",
+      });
+    } catch (error) {
+      updateStop(stopId, {
+        status: error.message || "Failed to find more restaurants.",
+      });
+    } finally {
+      updateStop(stopId, { loadingRestaurants: false });
     }
   }
 
   async function handleCreatePlan() {
-    if (!region.trim() || selectedPlaces.length === 0 || loadingPlan) {
-      return;
-    }
+    if (selectedPlaces.length === 0 || loadingPlan) return;
 
     try {
       setLoadingPlan(true);
       setStatus("Creating an optimized travel plan.");
       const nextPlan = await createTravelPlan({
-        region: region.trim(),
+        region: region.trim() || selectedPlaces[0]?.name || "Travel route",
         themes,
         attractions: selectedPlaces.map(
-          (place) =>
-            `${place.kind === "restaurant" ? "맛집" : "관광지"}: ${place.name}`,
+          (place) => `${place.kind === "restaurant" ? "맛집" : "관광지"}: ${place.name}`,
         ),
       });
       setPlan(nextPlan);
       setStatus(
         nextPlan.steps.length > 0
           ? "Plan is ready."
-          : "A plan could not be generated. Change attractions and try again.",
+          : "A plan could not be generated. Change places and try again.",
       );
     } catch (error) {
       setStatus(error.message || "Failed to create a plan.");
@@ -778,21 +1030,39 @@ function RecommendPanel() {
     <section className="travel-recommend">
       <div className="travel-recommend-head">
         <div>
-          <h2>Recomand</h2>
-          <p>Build a route from a region and your travel themes.</p>
+          <h2>Travel Planner</h2>
+          <p>Add tourist spots one by one, then place restaurants before the next stop.</p>
         </div>
-        <span>{loadingAttractions || loadingPlan ? "Working" : "Ready"}</span>
+        <span>
+          {working ? "Working" : "Ready"}
+        </span>
       </div>
 
-      <form className="travel-recommend-search" onSubmit={handleFindAttractions}>
+      <div className="travel-recommend-map-slot">
+        <Map
+          posts={[
+            {
+              id: "recommend-route",
+              caption: "Recommended route",
+              categoryTag: "관광",
+              locations: routeLocations,
+            },
+          ]}
+          title="Recommended Route"
+          showMarkerLabels
+          showRouteLines
+        />
+      </div>
+
+      <form className="travel-recommend-search" onSubmit={(event) => event.preventDefault()}>
         <input
           type="text"
           value={region}
           onChange={(event) => setRegion(event.target.value)}
-          placeholder="Region to visit"
+          placeholder="Travel region"
         />
-        <button type="submit" disabled={!region.trim() || loadingAttractions}>
-          {loadingAttractions ? "Searching..." : "Find places"}
+        <button type="button" onClick={handleAddStop}>
+          Add place
         </button>
       </form>
 
@@ -809,45 +1079,75 @@ function RecommendPanel() {
         ))}
       </div>
 
+      <div className="travel-recommend-food-controls">
+        <label>
+          <span>Restaurant price</span>
+          <select
+            value={priceFilter}
+            onChange={(event) => setPriceFilter(event.target.value)}
+          >
+            {RESTAURANT_PRICE_FILTERS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Cuisine</span>
+          <select
+            value={cuisine}
+            onChange={(event) => setCuisine(event.target.value)}
+          >
+            {RESTAURANT_CUISINES.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {stops.map((stop, index) => (
+        <PlannerStop
+          key={stop.id}
+          stop={stop}
+          index={index}
+          canRemove={stops.length > 1}
+          cuisine={cuisine}
+          priceFilter={priceFilter}
+          onQueryChange={(value) =>
+            updateStop(stop.id, { attractionQuery: value })
+          }
+          onFindAttractions={(event) => handleFindAttractions(event, stop.id)}
+          onSelectAttraction={(id) => handleSelectAttraction(stop.id, id)}
+          onFindRestaurants={() => handleFindRestaurants(stop.id)}
+          onToggleRestaurant={(id) => handleToggleRestaurant(stop.id, id)}
+          onAttractionSortChange={(value) =>
+            updateStop(stop.id, { attractionSort: value })
+          }
+          onRestaurantSortChange={(value) =>
+            updateStop(stop.id, { restaurantSort: value })
+          }
+          onViewMoreAttractions={() => handleViewMoreAttractions(stop.id)}
+          onViewMoreRestaurants={() => handleViewMoreRestaurants(stop.id)}
+          onRemove={() => handleRemoveStop(stop.id)}
+        />
+      ))}
+
+      {stops.length > 0 && (
+        <button
+          className="travel-recommend-add-place"
+          type="button"
+          onClick={handleAddStop}
+        >
+          Add next place
+        </button>
+      )}
+
       {status && <p className="travel-recommend-status">{status}</p>}
 
-      {(attractions.length > 0 || restaurants.length > 0) && (
-        <div className="travel-recommend-map-slot">
-          <Map
-            posts={[
-              {
-                id: "recommend-route",
-                caption: "Recommended route",
-                categoryTag: "관광",
-                locations: routeLocations,
-              },
-            ]}
-            title="Recommended Route"
-            showMarkerLabels
-            showRouteLines
-          />
-        </div>
-      )}
-
-      {attractions.length > 0 && (
-        <PlaceChoiceSection
-          title="Tourist spots"
-          places={attractions}
-          selectedPlaceIds={selectedPlaceIds}
-          onTogglePlace={togglePlace}
-        />
-      )}
-
-      {restaurants.length > 0 && (
-        <PlaceChoiceSection
-          title="Nearby restaurants"
-          places={restaurants}
-          selectedPlaceIds={selectedPlaceIds}
-          onTogglePlace={togglePlace}
-        />
-      )}
-
-      {(attractions.length > 0 || restaurants.length > 0) && (
+      {selectedPlaces.length > 0 && (
         <button
           className="travel-recommend-plan-btn"
           type="button"
@@ -860,7 +1160,7 @@ function RecommendPanel() {
 
       {plan && plan.steps.length > 0 && (
         <div className="travel-recommend-plan">
-          <h3>{plan.title || `${region} travel plan`}</h3>
+          <h3>{plan.title || `${region || "Route"} travel plan`}</h3>
           {plan.summary && <p>{plan.summary}</p>}
           <ol>
             {plan.steps.map((step, index) => (
@@ -880,10 +1180,154 @@ function RecommendPanel() {
   );
 }
 
-function PlaceChoiceSection({ title, places, selectedPlaceIds, onTogglePlace }) {
+function PlannerStop({
+  stop,
+  index,
+  canRemove,
+  cuisine,
+  priceFilter,
+  onQueryChange,
+  onFindAttractions,
+  onSelectAttraction,
+  onFindRestaurants,
+  onToggleRestaurant,
+  onAttractionSortChange,
+  onRestaurantSortChange,
+  onViewMoreAttractions,
+  onViewMoreRestaurants,
+  onRemove,
+}) {
+  const selectedAttraction = stop.attractions.find(
+    (place) => place.id === stop.selectedAttractionId,
+  );
+  const sortedAttractions = sortRecommendPlaces(
+    stop.attractions,
+    stop.attractionSort,
+  );
+  const sortedRestaurants = sortRecommendPlaces(
+    stop.restaurants,
+    stop.restaurantSort,
+  );
+  const visibleAttractions = sortedAttractions.slice(
+    0,
+    stop.attractionVisibleCount,
+  );
+  const visibleRestaurants = sortedRestaurants.slice(
+    0,
+    stop.restaurantVisibleCount,
+  );
+
+  return (
+    <section className="travel-planner-stop">
+      <div className="travel-planner-stop-head">
+        <div>
+          <h3>Place {index + 1}</h3>
+          {selectedAttraction && <p>{selectedAttraction.name}</p>}
+        </div>
+        {canRemove && (
+          <button type="button" onClick={onRemove}>
+            Remove
+          </button>
+        )}
+      </div>
+
+      <form className="travel-recommend-search" onSubmit={onFindAttractions}>
+        <input
+          type="text"
+          value={stop.attractionQuery}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Tourist spot or area"
+        />
+        <button
+          type="submit"
+          disabled={!stop.attractionQuery.trim() || stop.loadingAttractions}
+        >
+          {stop.loadingAttractions ? "Searching..." : "Find tourist spots"}
+        </button>
+      </form>
+
+      {stop.status && <p className="travel-recommend-status">{stop.status}</p>}
+
+      {stop.attractions.length > 0 && (
+        <PlaceChoiceSection
+          title="Tourist spots"
+          places={visibleAttractions}
+          canViewMore={
+            visibleAttractions.length < sortedAttractions.length ||
+            sortedAttractions.length < RECOMMEND_MAX_RESULTS
+          }
+          sortMode={stop.attractionSort}
+          onSortChange={onAttractionSortChange}
+          onViewMore={onViewMoreAttractions}
+          viewMoreDisabled={stop.loadingAttractions}
+          selectedPlaceIds={
+            stop.selectedAttractionId ? [stop.selectedAttractionId] : []
+          }
+          onTogglePlace={onSelectAttraction}
+        />
+      )}
+
+      {selectedAttraction && (
+        <div className="travel-planner-restaurant-row">
+          <span>
+            Restaurants near {selectedAttraction.name} · {priceFilter} · {cuisine}
+          </span>
+          <button
+            type="button"
+            onClick={onFindRestaurants}
+            disabled={stop.loadingRestaurants}
+          >
+            {stop.loadingRestaurants ? "Finding..." : "Find restaurants"}
+          </button>
+        </div>
+      )}
+
+      {stop.restaurants.length > 0 && (
+        <PlaceChoiceSection
+          title="Restaurants before next place"
+          places={visibleRestaurants}
+          canViewMore={
+            visibleRestaurants.length < sortedRestaurants.length ||
+            sortedRestaurants.length < RECOMMEND_MAX_RESULTS
+          }
+          sortMode={stop.restaurantSort}
+          onSortChange={onRestaurantSortChange}
+          onViewMore={onViewMoreRestaurants}
+          viewMoreDisabled={stop.loadingRestaurants}
+          selectedPlaceIds={stop.selectedRestaurantIds}
+          onTogglePlace={onToggleRestaurant}
+        />
+      )}
+    </section>
+  );
+}
+
+function PlaceChoiceSection({
+  title,
+  places,
+  canViewMore = false,
+  sortMode,
+  onSortChange,
+  onViewMore,
+  viewMoreDisabled = false,
+  selectedPlaceIds,
+  onTogglePlace,
+}) {
   return (
     <div className="travel-recommend-section">
-      <h3>{title}</h3>
+      <div className="travel-recommend-section-head">
+        <h3>{title}</h3>
+        <select
+          value={sortMode}
+          onChange={(event) => onSortChange(event.target.value)}
+        >
+          {RECOMMEND_SORT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="travel-recommend-attractions">
         {places.map((item) => (
           <label key={item.id} className="travel-recommend-attraction">
@@ -892,16 +1336,33 @@ function PlaceChoiceSection({ title, places, selectedPlaceIds, onTogglePlace }) 
               checked={selectedPlaceIds.includes(item.id)}
               onChange={() => onTogglePlace(item.id)}
             />
+            <div className="travel-recommend-place-image">
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={`${item.name} preview`} />
+              ) : (
+                <span>No image</span>
+              )}
+            </div>
             <span>
               <strong>{item.name}</strong>
               <small>
-                {item.rating ? `Rating ${item.rating}` : item.theme || "Travel"}
+                {formatPlaceMeta(item)}
               </small>
               <p>{item.address || item.description || item.reason}</p>
             </span>
           </label>
         ))}
       </div>
+      {canViewMore && (
+        <button
+          className="travel-recommend-view-more"
+          type="button"
+          onClick={onViewMore}
+          disabled={viewMoreDisabled}
+        >
+          {viewMoreDisabled ? "Loading..." : "View more"}
+        </button>
+      )}
     </div>
   );
 }
@@ -1035,8 +1496,9 @@ function PostCard({
               type="button"
               className="travel-menu-btn"
               onClick={() => setMenuOpen((value) => !value)}
+              aria-label="Post options"
             >
-              ⋯
+              <MoreIcon />
             </button>
             {menuOpen && (
               <div className="travel-menu-dropdown">
@@ -1073,7 +1535,7 @@ function PostCard({
               onClick={() => onLike(post.id)}
               aria-label="like"
             >
-              {post.likedByMe ? "♥" : "♡"}
+              <HeartIcon filled={post.likedByMe} />
             </button>
             <span className="travel-action-count">{post.likeCount}</span>
             <button
@@ -1082,7 +1544,7 @@ function PostCard({
               onClick={() => setCommentsOpen((value) => !value)}
               aria-label="comments"
             >
-              C
+              <CommentIcon />
             </button>
             <span className="travel-action-count">{post.comments.length}</span>
           </div>
@@ -1139,7 +1601,7 @@ function PostCard({
                 placeholder={
                   isLoggedIn
                     ? `${currentUsername}, add a comment`
-                    : "로그인 후 댓글을 작성할 수 있습니다."
+                    : "Sign in to write a comment."
                 }
                 disabled={!isLoggedIn}
               />
@@ -1151,6 +1613,59 @@ function PostCard({
         )}
       </div>
     </article>
+  );
+}
+
+function HeartIcon({ filled = false }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M20.8 4.6c-2.1-2-5.4-1.9-7.4.2L12 6.2l-1.4-1.4c-2-2.1-5.3-2.2-7.4-.2-2.3 2.2-2.4 5.8-.2 8.1l9 8.7 9-8.7c2.2-2.3 2.1-5.9-.2-8.1Z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M5.4 18.1A8.3 8.3 0 1 1 12 21H5l.4-2.9Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.7" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+      <circle cx="19" cy="12" r="1.7" fill="currentColor" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 7h16M4 12h16M4 17h16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -1411,7 +1926,7 @@ function PostComposer({ onClose, onSubmit }) {
 
     setImageNotice(
       selectedFiles.length > MAX_POST_IMAGES
-        ? `사진은 최대 ${MAX_POST_IMAGES}장까지 업로드할 수 있어요.`
+        ? `You can upload up to ${MAX_POST_IMAGES} photos.`
         : "",
     );
     setImages(nextImages);
@@ -1427,7 +1942,7 @@ function PostComposer({ onClose, onSubmit }) {
   async function handleSuggestTags() {
     if (generatingTags || submitting) return;
     if (images.length === 0) {
-      setImageNotice("?ъ쭊??1???댁긽 ?좏깮?댁＜?몄슂.");
+      setImageNotice("Select at least one photo.");
       return;
     }
 
@@ -1480,7 +1995,7 @@ function PostComposer({ onClose, onSubmit }) {
     event.preventDefault();
     if (submitting || generatingTags) return;
     if (images.length === 0) {
-      setImageNotice("사진을 1장 이상 선택해주세요.");
+      setImageNotice("Select at least one photo.");
       return;
     }
 
@@ -1553,7 +2068,7 @@ function PostComposer({ onClose, onSubmit }) {
           onChange={handleImageChange}
         />
         <small className="travel-file-hint">
-          사진은 최대 {MAX_POST_IMAGES}장까지 선택할 수 있어요.
+          You can select up to {MAX_POST_IMAGES} photos.
         </small>
         {imageNotice && <p className="travel-file-notice">{imageNotice}</p>}
         {previewUrls.length > 0 && (
@@ -1718,7 +2233,7 @@ function CategoryTagInput({ value, onChange }) {
         list="travel-category-tags"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="여행 식사 카페"
+        placeholder="travel food cafe"
       />
       <datalist id="travel-category-tags">
         {DEFAULT_CATEGORIES.map((category) => (
@@ -1745,6 +2260,69 @@ function reorderItems(items, fromIndex, toIndex) {
   const [movedItem] = nextItems.splice(fromIndex, 1);
   nextItems.splice(toIndex, 0, movedItem);
   return nextItems;
+}
+
+function sortRecommendPlaces(places, sortMode) {
+  return [...places].sort((left, right) => {
+    if (sortMode === "reviews") {
+      return (
+        (right.userRatingsTotal || 0) - (left.userRatingsTotal || 0) ||
+        (right.rating || 0) - (left.rating || 0)
+      );
+    }
+
+    return (
+      (right.rating || 0) - (left.rating || 0) ||
+      (right.userRatingsTotal || 0) - (left.userRatingsTotal || 0)
+    );
+  });
+}
+
+function mergePlacesById(...placeLists) {
+  const merged = new Map();
+  placeLists.flat().forEach((place) => {
+    if (!place?.id || merged.has(place.id)) return;
+    merged.set(place.id, place);
+  });
+  return Array.from(merged.values());
+}
+
+function createPlannerStop(defaultQuery = "") {
+  return {
+    id: `stop-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    attractionQuery: defaultQuery,
+    attractions: [],
+    restaurants: [],
+    selectedAttractionId: "",
+    selectedRestaurantIds: [],
+    attractionVisibleCount: RECOMMEND_VISIBLE_STEP,
+    restaurantVisibleCount: RECOMMEND_VISIBLE_STEP,
+    attractionSort: "rating",
+    restaurantSort: "rating",
+    status: "",
+    loadingAttractions: false,
+    loadingRestaurants: false,
+  };
+}
+
+function getStopRoutePlaces(stop) {
+  const attraction = stop.attractions.find(
+    (place) => place.id === stop.selectedAttractionId,
+  );
+  const restaurants = stop.restaurants.filter((place) =>
+    stop.selectedRestaurantIds.includes(place.id),
+  );
+
+  return attraction ? [attraction, ...restaurants] : restaurants;
+}
+
+function formatPlaceMeta(place) {
+  const rating = place.rating ? `Rating ${place.rating}` : "No rating";
+  const reviews = Number.isFinite(place.userRatingsTotal)
+    ? `${place.userRatingsTotal} reviews`
+    : "0 reviews";
+
+  return `${rating} · ${reviews}`;
 }
 
 function splitTags(value) {

@@ -1,11 +1,30 @@
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { latitude: 37.5666103, longitude: 126.9783882 };
+const GOOGLE_PLACES_PAGE_SIZE = 20;
+const GOOGLE_PLACES_MAX_RESULTS = 60;
 
 let googleMapsPromise;
 
-export function loadGoogleMaps() {
+async function ensurePlacesLibrary(maps) {
+  if (maps.places?.PlacesService) {
+    return maps.places;
+  }
+
+  if (typeof maps.importLibrary === "function") {
+    const placesLibrary = await maps.importLibrary("places");
+    if (placesLibrary?.PlacesService) {
+      return placesLibrary;
+    }
+  }
+
+  throw new Error("GOOGLE_PLACES_NOT_AVAILABLE");
+}
+
+export function loadGoogleMaps({ requirePlaces = false } = {}) {
   if (window.google?.maps) {
-    return Promise.resolve(window.google.maps);
+    return requirePlaces
+      ? ensurePlacesLibrary(window.google.maps).then(() => window.google.maps)
+      : Promise.resolve(window.google.maps);
   }
 
   if (!GOOGLE_MAPS_API_KEY) {
@@ -40,19 +59,27 @@ export function loadGoogleMaps() {
     });
   }
 
-  return googleMapsPromise;
+  return requirePlaces
+    ? googleMapsPromise.then((maps) =>
+        ensurePlacesLibrary(maps).then(() => maps),
+      )
+    : googleMapsPromise;
 }
 
 export async function searchGooglePlaces({
   region,
   themes = [],
   limit = 12,
-  keyword = "관광지",
+  keyword = "\uAD00\uAD11\uC9C0",
   location = null,
   radius = 250000,
 }) {
-  const maps = await loadGoogleMaps();
+  const maps = await loadGoogleMaps({ requirePlaces: true });
+  const placesApi = await ensurePlacesLibrary(maps);
   const container = document.createElement("div");
+  container.style.cssText =
+    "position:absolute;left:-10000px;top:-10000px;width:320px;height:240px;";
+  document.body.appendChild(container);
   const center = location
     ? { lat: location.latitude, lng: location.longitude }
     : { lat: DEFAULT_CENTER.latitude, lng: DEFAULT_CENTER.longitude };
@@ -60,50 +87,105 @@ export async function searchGooglePlaces({
     center,
     zoom: 11,
   });
-  const service = new maps.places.PlacesService(map);
+  const service = new placesApi.PlacesService(map);
+  const placesStatus = placesApi.PlacesServiceStatus ||
+    maps.places?.PlacesServiceStatus || {
+      OK: "OK",
+    };
   const query = [region, ...themes, keyword].filter(Boolean).join(" ");
+  const targetLimit = Math.min(limit, GOOGLE_PLACES_MAX_RESULTS);
 
-  return new Promise((resolve) => {
-    service.textSearch(
-      {
-        query,
-        location: center,
-        radius,
-        region: "KR",
-      },
-      (results, status) => {
-        if (status !== maps.places.PlacesServiceStatus.OK || !Array.isArray(results)) {
-          resolve([]);
-          return;
-        }
+  return new Promise((resolve, reject) => {
+    const collected = [];
 
-        resolve(
-          results.slice(0, limit).map((place) => ({
-            id: place.place_id || place.name,
-            name: place.name || "Place",
-            address: place.formatted_address || "",
-            latitude: place.geometry?.location?.lat(),
-            longitude: place.geometry?.location?.lng(),
-            rating: place.rating || null,
-            userRatingsTotal: place.user_ratings_total || 0,
-            theme: keyword,
-            description: place.formatted_address || "",
-          })),
-        );
-      },
-    );
+    function finish() {
+      container.remove();
+      resolve(
+        collected
+          .slice(0, targetLimit)
+          .map((place) => mapGooglePlaceResult(place, keyword)),
+      );
+    }
+
+    function handlePage(results, status, pagination) {
+      if (status !== placesStatus.OK || !Array.isArray(results)) {
+        finish();
+        return;
+      }
+
+      collected.push(...results);
+
+      if (
+        collected.length < targetLimit &&
+        pagination?.hasNextPage &&
+        collected.length < GOOGLE_PLACES_MAX_RESULTS
+      ) {
+        window.setTimeout(() => pagination.nextPage(), 1200);
+        return;
+      }
+
+      finish();
+    }
+
+    try {
+      service.textSearch(
+        {
+          query,
+          location: center,
+          radius,
+          region: "KR",
+        },
+        handlePage,
+      );
+    } catch (error) {
+      container.remove();
+      reject(error);
+    }
   });
 }
 
-export async function searchRestaurantsNearPlaces({ places, region, limit = 10 }) {
+function mapGooglePlaceResult(place, keyword) {
+  return {
+    id: place.place_id || place.name,
+    name: place.name || "Place",
+    address: place.formatted_address || "",
+    latitude: place.geometry?.location?.lat(),
+    longitude: place.geometry?.location?.lng(),
+    rating: place.rating || null,
+    userRatingsTotal: place.user_ratings_total || 0,
+    imageUrl:
+      place.photos?.[0]?.getUrl({
+        maxWidth: 520,
+        maxHeight: 340,
+      }) || "",
+    theme: keyword,
+    description: place.formatted_address || "",
+  };
+}
+
+export async function searchRestaurantsNearPlaces({
+  places,
+  region,
+  cuisine,
+  priceFilter,
+  limit = 10,
+}) {
   const anchorPlaces = (places || []).filter(
-    (place) => Number.isFinite(place.latitude) && Number.isFinite(place.longitude),
+    (place) =>
+      Number.isFinite(place.latitude) && Number.isFinite(place.longitude),
   );
+  const keyword = [
+    cuisine && cuisine !== "\uC804\uCCB4" ? cuisine : "",
+    priceFilter && priceFilter !== "\uC804\uCCB4" ? priceFilter : "",
+    "\uB9DB\uC9D1",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   if (anchorPlaces.length === 0) {
     return searchGooglePlaces({
       region,
-      keyword: "맛집",
+      keyword,
       limit,
       radius: 120000,
     });
@@ -113,7 +195,7 @@ export async function searchRestaurantsNearPlaces({ places, region, limit = 10 }
     anchorPlaces.slice(0, 3).map((place) =>
       searchGooglePlaces({
         region: place.name,
-        keyword: "근처 맛집",
+        keyword: `\uADFC\uCC98 ${keyword}`,
         limit: Math.ceil(limit / Math.min(anchorPlaces.length, 3)),
         location: place,
         radius: 3000,

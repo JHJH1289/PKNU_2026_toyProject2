@@ -647,10 +647,11 @@ export default function Map({
           ))}
         </div>
       )}
-      <div className="travel-map-canvas" ref={mapElementRef}>
-        {status && <span>{status}</span>}
+      <div className="travel-map-canvas-wrap">
+        <div className="travel-map-canvas" ref={mapElementRef} />
+        {status && <span className="travel-map-overlay">{status}</span>}
         {!status && !mappedPosts.length && !selectable && (
-          <span>No post locations yet.</span>
+          <span className="travel-map-overlay">No post locations yet.</span>
         )}
       </div>
       {selectable && (
