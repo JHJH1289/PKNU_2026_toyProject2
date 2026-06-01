@@ -808,6 +808,8 @@ function RecommendPanel() {
         selectedRestaurantIds: [],
         attractionVisibleCount: RECOMMEND_VISIBLE_STEP,
         restaurantVisibleCount: RECOMMEND_VISIBLE_STEP,
+        attractionCanLoadMore: true,
+        restaurantCanLoadMore: true,
         status:
           attractionItems.length > 0
             ? "Select one tourist spot to add it to the route."
@@ -852,6 +854,7 @@ function RecommendPanel() {
         restaurants: restaurantItems,
         selectedRestaurantIds: [],
         restaurantVisibleCount: RECOMMEND_VISIBLE_STEP,
+        restaurantCanLoadMore: true,
         status:
           restaurantItems.length > 0
             ? "Select restaurants to place them before the next tourist spot."
@@ -923,6 +926,9 @@ function RecommendPanel() {
         attractions: mergedAttractions,
         attractionVisibleCount:
           stop.attractionVisibleCount + RECOMMEND_VISIBLE_STEP,
+        attractionCanLoadMore:
+          mergedAttractions.length > stop.attractions.length &&
+          mergedAttractions.length < RECOMMEND_MAX_RESULTS,
         status:
           mergedAttractions.length > stop.attractions.length
             ? "More tourist spots were added."
@@ -986,6 +992,9 @@ function RecommendPanel() {
         restaurants: mergedRestaurants,
         restaurantVisibleCount:
           stop.restaurantVisibleCount + RECOMMEND_VISIBLE_STEP,
+        restaurantCanLoadMore:
+          mergedRestaurants.length > stop.restaurants.length &&
+          mergedRestaurants.length < RECOMMEND_MAX_RESULTS,
         status:
           mergedRestaurants.length > stop.restaurants.length
             ? "More restaurants were added."
@@ -1254,7 +1263,8 @@ function PlannerStop({
           places={visibleAttractions}
           canViewMore={
             visibleAttractions.length < sortedAttractions.length ||
-            sortedAttractions.length < RECOMMEND_MAX_RESULTS
+            (stop.attractionCanLoadMore &&
+              sortedAttractions.length < RECOMMEND_MAX_RESULTS)
           }
           sortMode={stop.attractionSort}
           onSortChange={onAttractionSortChange}
@@ -1288,7 +1298,8 @@ function PlannerStop({
           places={visibleRestaurants}
           canViewMore={
             visibleRestaurants.length < sortedRestaurants.length ||
-            sortedRestaurants.length < RECOMMEND_MAX_RESULTS
+            (stop.restaurantCanLoadMore &&
+              sortedRestaurants.length < RECOMMEND_MAX_RESULTS)
           }
           sortMode={stop.restaurantSort}
           onSortChange={onRestaurantSortChange}
@@ -2297,6 +2308,8 @@ function createPlannerStop(defaultQuery = "") {
     selectedRestaurantIds: [],
     attractionVisibleCount: RECOMMEND_VISIBLE_STEP,
     restaurantVisibleCount: RECOMMEND_VISIBLE_STEP,
+    attractionCanLoadMore: true,
+    restaurantCanLoadMore: true,
     attractionSort: "rating",
     restaurantSort: "rating",
     status: "",
