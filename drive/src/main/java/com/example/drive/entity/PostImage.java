@@ -43,4 +43,8 @@ public class PostImage {
     public String getContentType() { return contentType; }
     public Long getFileSize() { return fileSize; }
     public Integer getSortOrder() { return sortOrder; }
+
+    public void changeSortOrder(Integer sortOrder) {
+        this.sortOrder = sortOrder;
+    }
 }

@@ -26,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -39,6 +40,7 @@ public class PostService {
     private final PostLikeRepository postLikeRepository;
     private final PostViewRepository postViewRepository;
     private final UserRepository userRepository;
+    private final AiTagSuggestionService aiTagSuggestionService;
 
     public PostService(
             StorageService storageService,
@@ -46,7 +48,8 @@ public class PostService {
             CommentRepository commentRepository,
             PostLikeRepository postLikeRepository,
             PostViewRepository postViewRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            AiTagSuggestionService aiTagSuggestionService
     ) {
         this.storageService = storageService;
         this.postRepository = postRepository;
@@ -54,6 +57,7 @@ public class PostService {
         this.postLikeRepository = postLikeRepository;
         this.postViewRepository = postViewRepository;
         this.userRepository = userRepository;
+        this.aiTagSuggestionService = aiTagSuggestionService;
     }
 
     @Transactional
@@ -82,6 +86,21 @@ public class PostService {
         post.replaceLocations(toPostLocations(post, normalizedLocations));
 
         return toPostResponse(postRepository.save(post), ownerId);
+    }
+
+    public List<String> suggestTags(String caption, List<PostLocationRequest> locations, String categoryTag, List<MultipartFile> images) {
+        MultipartFile primaryImage = images == null
+                ? null
+                : images.stream()
+                .filter(image -> image != null && !image.isEmpty())
+                .findFirst()
+                .orElse(null);
+
+        if (primaryImage == null) {
+            return List.of();
+        }
+
+        return aiTagSuggestionService.suggestTags(caption, locations, categoryTag, primaryImage);
     }
 
     public List<PostResponse> getFeed(String viewerId) {
@@ -188,12 +207,13 @@ public class PostService {
         Post post = findPost(id);
         registerView(post, viewerId);
 
-        if (!post.getImages().isEmpty()) {
-            if (imageIndex < 0 || imageIndex >= post.getImages().size()) {
+        List<PostImage> orderedImages = orderedPostImages(post);
+        if (!orderedImages.isEmpty()) {
+            if (imageIndex < 0 || imageIndex >= orderedImages.size()) {
                 throw new IllegalArgumentException("Image not found.");
             }
 
-            PostImage image = post.getImages().get(imageIndex);
+            PostImage image = orderedImages.get(imageIndex);
             String contentType = image.getContentType() != null
                     ? image.getContentType()
                     : MediaType.APPLICATION_OCTET_STREAM_VALUE;
@@ -225,7 +245,7 @@ public class PostService {
     }
 
     @Transactional
-    public PostResponse updatePost(String ownerId, Long id, String caption, String locationName, Double latitude, Double longitude, List<PostLocationRequest> locations, String categoryTag, boolean admin) {
+    public PostResponse updatePost(String ownerId, Long id, String caption, String locationName, Double latitude, Double longitude, List<PostLocationRequest> locations, String categoryTag, List<Integer> imageOrder, boolean admin) {
         Post post = findPost(id);
         if (!admin && !normalizeOwnerId(ownerId).equals(post.getOwnerId())) {
             throw new IllegalArgumentException("Post not found.");
@@ -241,6 +261,7 @@ public class PostService {
                 normalizeCategoryTag(categoryTag)
         );
         post.replaceLocations(toPostLocations(post, normalizedLocations));
+        reorderPostImages(post, imageOrder);
         return toPostResponse(post, ownerId);
     }
 
@@ -428,6 +449,30 @@ public class PostService {
                 .toList();
     }
 
+    private void reorderPostImages(Post post, List<Integer> imageOrder) {
+        if (imageOrder == null || imageOrder.isEmpty() || post.getImages().isEmpty()) {
+            return;
+        }
+
+        int imageCount = post.getImages().size();
+        List<Integer> normalizedOrder = imageOrder.stream()
+                .filter(index -> index != null && index >= 0 && index < imageCount)
+                .distinct()
+                .toList();
+
+        if (normalizedOrder.size() != imageCount) {
+            return;
+        }
+
+        List<PostImage> orderedImages = normalizedOrder.stream()
+                .map(index -> post.getImages().get(index))
+                .toList();
+
+        for (int index = 0; index < orderedImages.size(); index++) {
+            orderedImages.get(index).changeSortOrder(index);
+        }
+    }
+
     private List<String> toPostImageUrls(Post post) {
         List<String> urls = new ArrayList<>();
         urls.add("/api/posts/" + post.getId() + "/image");
@@ -443,7 +488,7 @@ public class PostService {
     private List<String> postImageStorageKeys(Post post) {
         List<String> storageKeys = new ArrayList<>();
 
-        post.getImages().stream()
+        orderedPostImages(post).stream()
                 .map(PostImage::getStorageKey)
                 .filter(value -> value != null && !value.isBlank())
                 .forEach(storageKeys::add);
@@ -454,6 +499,14 @@ public class PostService {
 
         return storageKeys.stream()
                 .distinct()
+                .toList();
+    }
+
+    private List<PostImage> orderedPostImages(Post post) {
+        return post.getImages().stream()
+                .sorted(Comparator
+                        .comparing(PostImage::getSortOrder, Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(PostImage::getId, Comparator.nullsLast(Long::compareTo)))
                 .toList();
     }
 

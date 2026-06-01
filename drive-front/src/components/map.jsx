@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { loadGoogleMaps } from "../utils/googlePlaces";
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { latitude: 37.5666103, longitude: 126.9783882 };
 const ROUTE_LINE_COLOR = "#1d9bf0";
 const ROUTE_LINE_SHADOW = "#ffffff";
@@ -21,47 +21,6 @@ const CATEGORY_LEGEND_ITEMS = [
   { key: "식사", label: "식사", color: CATEGORY_MARKER_COLORS.식사 },
   { key: "more", label: "More tags", color: CATEGORY_MARKER_COLORS.more },
 ];
-let googleMapsPromise;
-
-function loadGoogleMaps() {
-  if (window.google?.maps) {
-    return Promise.resolve(window.google.maps);
-  }
-
-  if (!GOOGLE_MAPS_API_KEY) {
-    return Promise.reject(new Error("GOOGLE_MAPS_API_KEY_EMPTY"));
-  }
-
-  if (!googleMapsPromise) {
-    googleMapsPromise = new Promise((resolve, reject) => {
-      const callbackName = `initGoogleMaps${Date.now()}`;
-      const script = document.createElement("script");
-      const params = new URLSearchParams({
-        key: GOOGLE_MAPS_API_KEY,
-        callback: callbackName,
-        libraries: "places",
-        language: "ko",
-        region: "KR",
-      });
-
-      window[callbackName] = () => {
-        delete window[callbackName];
-        resolve(window.google.maps);
-      };
-
-      script.src = `https://maps.googleapis.com/maps/api/js?${params}`;
-      script.async = true;
-      script.defer = true;
-      script.onerror = () => {
-        delete window[callbackName];
-        reject(new Error("GOOGLE_MAPS_LOAD_FAILED"));
-      };
-      document.head.appendChild(script);
-    });
-  }
-
-  return googleMapsPromise;
-}
 
 function hasCoordinates(value) {
   return Number.isFinite(value?.latitude) && Number.isFinite(value?.longitude);

@@ -9,6 +9,7 @@ public class PostUpdateRequest {
     private Double longitude;
     private String categoryTag;
     private List<PostLocationRequest> locations;
+    private List<Integer> imageOrder;
 
     public String getCaption() {
         return caption;
@@ -56,5 +57,13 @@ public class PostUpdateRequest {
 
     public void setLocations(List<PostLocationRequest> locations) {
         this.locations = locations;
+    }
+
+    public List<Integer> getImageOrder() {
+        return imageOrder;
+    }
+
+    public void setImageOrder(List<Integer> imageOrder) {
+        this.imageOrder = imageOrder;
     }
 }

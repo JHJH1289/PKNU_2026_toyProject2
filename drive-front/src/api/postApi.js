@@ -83,6 +83,47 @@ export async function fetchAdminPosts() {
   return normalizePosts(await request("/api/posts/admin"));
 }
 
+export async function suggestPostTags({
+  images,
+  image,
+  caption,
+  locations,
+  categoryTag,
+}) {
+  const formData = new FormData();
+  const uploadImages =
+    Array.isArray(images) && images.length > 0 ? images : image ? [image] : [];
+
+  if (uploadImages.length === 0) {
+    throw new Error("At least one image is required.");
+  }
+
+  uploadImages.forEach((file) => {
+    formData.append("images", file);
+  });
+
+  if (caption?.trim()) {
+    formData.append("caption", caption.trim());
+  }
+
+  if (Array.isArray(locations) && locations.length > 0) {
+    formData.append("locations", JSON.stringify(locations));
+  }
+
+  if (categoryTag?.trim()) {
+    formData.append("categoryTag", categoryTag.trim());
+  }
+
+  const response = await request("/api/posts/tags/suggest", {
+    method: "POST",
+    body: formData,
+  });
+
+  return Array.isArray(response?.tags)
+    ? response.tags.map((tag) => String(tag).trim()).filter(Boolean)
+    : [];
+}
+
 export async function createPost({
   images,
   image,
@@ -136,7 +177,15 @@ export async function createPost({
 
 export async function updatePost(
   id,
-  { caption, locationName, latitude, longitude, locations, categoryTag },
+  {
+    caption,
+    locationName,
+    latitude,
+    longitude,
+    locations,
+    categoryTag,
+    imageOrder,
+  },
 ) {
   return normalizePost(
     await request(`/api/posts/${id}`, {
@@ -151,6 +200,7 @@ export async function updatePost(
         longitude,
         locations,
         categoryTag,
+        imageOrder,
       }),
     }),
   );

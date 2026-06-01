@@ -92,6 +92,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/me", "/api/me/**").authenticated()
                         .requestMatchers("/api/posts/**").authenticated()
                         .requestMatchers("/api/photos/**").authenticated()
+                        .requestMatchers("/api/recommend/**").authenticated()
                         .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

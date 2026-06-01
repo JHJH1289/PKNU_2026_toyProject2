@@ -3,6 +3,7 @@ package com.example.drive.controller;
 import com.example.drive.dto.CommentCreateRequest;
 import com.example.drive.dto.PostLocationRequest;
 import com.example.drive.dto.PostResponse;
+import com.example.drive.dto.PostTagSuggestionResponse;
 import com.example.drive.dto.PostUpdateRequest;
 import com.example.drive.dto.UserStatsResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,6 +36,22 @@ public class PostController {
     @GetMapping
     public ResponseEntity<List<PostResponse>> feed(Authentication authentication) {
         return ResponseEntity.ok(postService.getFeed(currentUsername(authentication)));
+    }
+
+    @PostMapping(value = "/tags/suggest", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<PostTagSuggestionResponse> suggestTags(
+            @RequestParam(value = "images", required = false) List<MultipartFile> images,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "caption", required = false) String caption,
+            @RequestParam(value = "locations", required = false) String locations,
+            @RequestParam(value = "categoryTag", required = false) String categoryTag
+    ) {
+        return ResponseEntity.ok(new PostTagSuggestionResponse(postService.suggestTags(
+                caption,
+                parseLocations(locations),
+                categoryTag,
+                resolveImages(images, image)
+        )));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -138,6 +155,7 @@ public class PostController {
                 request.getLongitude(),
                 request.getLocations(),
                 request.getCategoryTag(),
+                request.getImageOrder(),
                 isAdmin(authentication)
         ));
     }

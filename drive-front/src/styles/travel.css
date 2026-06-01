@@ -756,6 +756,20 @@
   aspect-ratio: 1 / 1;
 }
 
+.travel-preview-grid-sortable .travel-preview-item {
+  cursor: grab;
+}
+
+.travel-preview-grid-sortable .travel-preview-item:active {
+  cursor: grabbing;
+}
+
+.travel-preview-item.is-dragging {
+  opacity: 0.55;
+  outline: 2px solid var(--travel-blue);
+  outline-offset: -2px;
+}
+
 .travel-preview-item img {
   width: 100%;
   height: 100%;
@@ -779,14 +793,99 @@
 }
 
 .travel-category-select,
+.travel-tag-editor,
 .travel-edit-form {
   display: grid;
   gap: 7px;
 }
 
-.travel-category-select small {
+.travel-category-select small,
+.travel-tag-editor small {
   color: var(--travel-muted);
   font-size: 12px;
+}
+
+.travel-tag-editor {
+  padding: 12px;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.travel-tag-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.travel-tag-editor-head span {
+  color: var(--travel-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.travel-tag-editor-head button,
+.travel-tag-add-form button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 9px 12px;
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark);
+  font: inherit;
+  font-weight: 800;
+}
+
+.travel-tag-editor-head button:disabled,
+.travel-tag-add-form button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.travel-tag-notice {
+  margin: 0;
+  color: var(--travel-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.travel-tag-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.travel-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid var(--travel-line) !important;
+  border-radius: 999px !important;
+  padding: 6px 10px !important;
+  background: #fff !important;
+  color: var(--travel-blue-dark) !important;
+  font: inherit;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+.travel-tag-chip span {
+  color: var(--travel-muted);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.travel-tag-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.travel-tag-add-form button {
+  background: var(--travel-blue);
+  color: #fff;
 }
 
 .travel-edit-form {
@@ -1174,6 +1273,205 @@
 .travel-profile-form button[type="submit"] {
   background: var(--travel-blue);
   color: #fff;
+}
+
+.travel-recommend {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding: 18px;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(29, 155, 240, 0.07);
+}
+
+.travel-recommend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.travel-recommend-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.travel-recommend-head p {
+  margin: 3px 0 0;
+  color: var(--travel-muted);
+  font-size: 13px;
+}
+
+.travel-recommend-head > span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.travel-recommend-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.travel-recommend-search input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  padding: 11px 12px;
+  font: inherit;
+}
+
+.travel-recommend-search button,
+.travel-recommend-plan-btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: var(--travel-blue);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+}
+
+.travel-recommend-search button:disabled,
+.travel-recommend-plan-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.travel-recommend-theme-list,
+.travel-recommend-attractions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.travel-recommend-theme-list button {
+  border: 1px solid var(--travel-line);
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--travel-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.travel-recommend-theme-list button.active {
+  border-color: var(--travel-blue);
+  background: var(--travel-blue-soft);
+  color: var(--travel-blue-dark);
+}
+
+.travel-recommend-status {
+  margin: 0;
+  color: var(--travel-muted);
+  font-size: 13px;
+}
+
+.travel-recommend-map-slot {
+  display: grid;
+  gap: 8px;
+}
+
+.travel-recommend-section {
+  display: grid;
+  gap: 10px;
+}
+
+.travel-recommend-section h3 {
+  margin: 0;
+  color: var(--travel-blue-dark);
+  font-size: 16px;
+}
+
+.travel-recommend-attractions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.travel-recommend-attraction {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.travel-recommend-attraction input {
+  margin-top: 3px;
+}
+
+.travel-recommend-attraction strong,
+.travel-recommend-attraction small {
+  display: block;
+}
+
+.travel-recommend-attraction small {
+  margin-top: 3px;
+  color: var(--travel-blue-dark);
+  font-weight: 800;
+}
+
+.travel-recommend-attraction p,
+.travel-recommend-plan p {
+  margin: 6px 0 0;
+  color: var(--travel-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.travel-recommend-plan {
+  padding: 14px;
+  border: 1px solid var(--travel-line);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.travel-recommend-plan h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.travel-recommend-plan ol {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.travel-recommend-plan li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.travel-recommend-plan time {
+  color: var(--travel-blue-dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.travel-recommend-plan li span {
+  display: inline-block;
+  margin-top: 3px;
+  color: var(--travel-muted);
+  font-size: 12px;
 }
 
 @media (max-width: 860px) {
