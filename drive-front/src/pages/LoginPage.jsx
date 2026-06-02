@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { login, register } from "../api/authApi";
 
-export default function LoginPage({ onLoginSuccess, onBackHome }) {
+export default function LoginPage({ onLoginSuccess }) {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -10,6 +10,7 @@ export default function LoginPage({ onLoginSuccess, onBackHome }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const submitMode = e.nativeEvent.submitter?.value || mode;
     setMessage("");
     setLoading(true);
 
@@ -18,7 +19,7 @@ export default function LoginPage({ onLoginSuccess, onBackHome }) {
         throw new Error("아이디와 비밀번호를 입력해주세요.");
       }
 
-      if (mode === "register") {
+      if (submitMode === "register") {
         await register(username.trim(), password);
         setMessage("회원가입이 완료되었습니다. 이제 로그인하세요.");
         setMode("login");
@@ -45,23 +46,6 @@ export default function LoginPage({ onLoginSuccess, onBackHome }) {
           여행 사진을 올리고, 서로의 여정을 피드에서 만나보세요.
         </p>
 
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={mode === "login" ? "tab active" : "tab"}
-            onClick={() => setMode("login")}
-          >
-            로그인
-          </button>
-          <button
-            type="button"
-            className={mode === "register" ? "tab active" : "tab"}
-            onClick={() => setMode("register")}
-          >
-            회원가입
-          </button>
-        </div>
-
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="row">
             <span>아이디</span>
@@ -83,22 +67,31 @@ export default function LoginPage({ onLoginSuccess, onBackHome }) {
             />
           </label>
 
-          <button type="submit" disabled={loading}>
-            {loading ? "처리 중..." : mode === "login" ? "로그인" : "회원가입"}
-          </button>
+          <div className="auth-tabs">
+            <button
+              type="submit"
+              name="authMode"
+              value="login"
+              className={mode === "login" ? "tab active" : "tab"}
+              onClick={() => setMode("login")}
+              disabled={loading}
+            >
+              {loading && mode === "login" ? "처리 중..." : "로그인"}
+            </button>
+            <button
+              type="submit"
+              name="authMode"
+              value="register"
+              className={mode === "register" ? "tab active" : "tab"}
+              onClick={() => setMode("register")}
+              disabled={loading}
+            >
+              {loading && mode === "register" ? "처리 중..." : "회원가입"}
+            </button>
+          </div>
         </form>
 
         {message && <div className="status-box">{message}</div>}
-
-        {onBackHome && (
-          <button
-            className="secondary-btn auth-home-btn"
-            type="button"
-            onClick={onBackHome}
-          >
-            로그인 없이 둘러보기
-          </button>
-        )}
       </div>
     </div>
   );

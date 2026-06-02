@@ -1,11 +1,14 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { Component, useEffect, useMemo, useState } from "react";
 import {
   fetchProfile,
   fetchUserProfile,
   updateProfile,
 } from "../api/profileApi";
 import {
-  createTravelPlan,
+  deleteTravelPlan,
+  fetchSavedTravelPlans,
+  generateSavedTravelPlan,
+  saveTravelPlan,
 } from "../api/recommendApi";
 import {
   addPostComment,
@@ -24,7 +27,7 @@ import {
   updatePostComment,
 } from "../api/postApi";
 import AuthImage from "../components/AuthImage";
-import Map from "../components/map.jsx";
+import TravelMap from "../components/map.jsx";
 import {
   searchGooglePlaces,
   searchRestaurantsNearPlaces,
@@ -39,18 +42,6 @@ const TABS = {
 
 const DEFAULT_CATEGORIES = ["\uC5EC\uD589", "\uCE74\uD398", "\uC2DD\uC0AC"];
 const MAX_POST_IMAGES = 10;
-const RECOMMEND_THEMES = [
-  "\uBC14\uB2E4",
-  "\uC2DC\uC7A5",
-  "\uC1FC\uD551",
-  "\uB9DB\uC9D1",
-  "\uCE74\uD398",
-  "\uC5ED\uC0AC",
-  "\uC790\uC5F0",
-  "\uC0B0\uCC45",
-  "\uC57C\uACBD",
-  "\uAC00\uC871",
-];
 const RESTAURANT_CUISINES = [
   "\uC804\uCCB4",
   "\uD55C\uC2DD",
@@ -72,6 +63,10 @@ const RECOMMEND_SORT_OPTIONS = [
 const RECOMMEND_VISIBLE_STEP = 6;
 const RECOMMEND_FETCH_STEP = 20;
 const RECOMMEND_MAX_RESULTS = 60;
+const MY_PAGE_VIEWS = {
+  posts: "posts",
+  plans: "plans",
+};
 
 export default function GalleryPage({
   username,
@@ -95,6 +90,8 @@ export default function GalleryPage({
   const [categorySearch, setCategorySearch] = useState("");
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [myPageView, setMyPageView] = useState(MY_PAGE_VIEWS.posts);
+  const [savedPlans, setSavedPlans] = useState([]);
 
   const isLoggedIn = Boolean(username);
   const isAdmin = isLoggedIn && role === "ADMIN";
@@ -386,11 +383,22 @@ export default function GalleryPage({
     onLogout?.();
   }
 
+  function openMyPageView(nextView) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return;
+    }
+
+    setMyPageView(nextView);
+    openUserProfile(username);
+  }
+
   useEffect(() => {
     let cancelled = false;
 
     setProfileUsername(username || "");
     setTab(TABS.feed);
+    setMyPageView(MY_PAGE_VIEWS.posts);
     setCategoryFilter("All");
     setLoading(true);
     setStatus("");
@@ -415,8 +423,20 @@ export default function GalleryPage({
           if (!cancelled && nextProfile) setProfile(nextProfile);
         })
         .catch(() => {});
+
+      fetchSavedTravelPlans()
+        .then((plans) => {
+          if (!cancelled) setSavedPlans(plans);
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            setSavedPlans([]);
+            setStatus(error.message || "Failed to load saved plans.");
+          }
+        });
     } else {
       setProfile({ username: "Guest", bio: "", profileImageUrl: "" });
+      setSavedPlans([]);
     }
 
     return () => {
@@ -435,6 +455,53 @@ export default function GalleryPage({
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [composerOpen]);
+
+  async function handlePlanSave(plan) {
+    if (!isLoggedIn) {
+      requireLogin();
+      return false;
+    }
+
+    try {
+      const savedPlan = await saveTravelPlan(plan);
+      setSavedPlans((current) => [
+        savedPlan,
+        ...current.filter((item) => item.id !== savedPlan.id),
+      ]);
+      return true;
+    } catch (error) {
+      setStatus(error.message || "Failed to save plan.");
+      return false;
+    }
+  }
+
+  async function handleDeleteSavedPlan(planId) {
+    if (!username) return;
+
+    try {
+      await deleteTravelPlan(planId);
+      setSavedPlans((current) => current.filter((plan) => plan.id !== planId));
+    } catch (error) {
+      setStatus(error.message || "Failed to delete plan.");
+    }
+  }
+
+  async function handleGenerateSavedPlan(planId) {
+    if (!username) return null;
+
+    try {
+      const generatedPlan = await generateSavedTravelPlan(planId);
+      setSavedPlans((current) =>
+        current.map((plan) => (plan.id === generatedPlan.id ? generatedPlan : plan)),
+      );
+      return generatedPlan;
+    } catch (error) {
+      setStatus(error.message || "Failed to create plan.");
+      return null;
+    }
+  }
+
+  const showingMyPlans = tab === TABS.me && myPageView === MY_PAGE_VIEWS.plans;
 
   return (
     <div className="travel-app">
@@ -534,13 +601,41 @@ export default function GalleryPage({
           </div>
 
           {isLoggedIn && (
-            <button
-              className={tab === TABS.me ? "active" : ""}
-              type="button"
-              onClick={() => changeTab(TABS.me)}
-            >
-              My Page
-            </button>
+            <>
+              <button
+                className={tab === TABS.me ? "active" : ""}
+                type="button"
+                onClick={() => openMyPageView(MY_PAGE_VIEWS.posts)}
+              >
+                My Page
+              </button>
+              <div className="travel-sidebar-subnav">
+                <span>My Page</span>
+                <button
+                  type="button"
+                  className={
+                    tab === TABS.me && myPageView === MY_PAGE_VIEWS.posts
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() => openMyPageView(MY_PAGE_VIEWS.posts)}
+                >
+                  My posts
+                </button>
+                <button
+                  type="button"
+                  className={
+                    tab === TABS.me && myPageView === MY_PAGE_VIEWS.plans
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() => openMyPageView(MY_PAGE_VIEWS.plans)}
+                >
+                  My plan
+                  {savedPlans.length > 0 && <small>{savedPlans.length}</small>}
+                </button>
+              </div>
+            </>
           )}
           {isLoggedIn && (
             <button
@@ -619,10 +714,14 @@ export default function GalleryPage({
           />
         )}
 
-        {tab === TABS.recommend && <RecommendPanel />}
+        {tab === TABS.recommend && (
+          <PlannerErrorBoundary>
+            <RecommendPanel onSavePlan={handlePlanSave} />
+          </PlannerErrorBoundary>
+        )}
 
-        {tab === TABS.me && (
-          <Map
+        {tab === TABS.me && myPageView === MY_PAGE_VIEWS.posts && (
+          <TravelMap
             posts={posts}
             showCategoryLegend
             showMarkerLabels={false}
@@ -630,7 +729,15 @@ export default function GalleryPage({
           />
         )}
 
-        {tab !== TABS.recommend && (
+        {showingMyPlans && (
+          <MyPlansPanel
+            plans={savedPlans}
+            onDelete={handleDeleteSavedPlan}
+            onGenerate={handleGenerateSavedPlan}
+          />
+        )}
+
+        {tab !== TABS.recommend && !showingMyPlans && (
           <>
             {status && <div className="travel-status">{status}</div>}
             {loading && <div className="travel-status">Loading...</div>}
@@ -681,17 +788,60 @@ export default function GalleryPage({
   );
 }
 
-function RecommendPanel() {
-  const [region, setRegion] = useState("");
-  const [themes, setThemes] = useState([]);
-  const [cuisine, setCuisine] = useState(RESTAURANT_CUISINES[0]);
-  const [priceFilter, setPriceFilter] = useState(RESTAURANT_PRICE_FILTERS[0]);
-  const [stops, setStops] = useState([]);
-  const [plan, setPlan] = useState(null);
+class PlannerErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <section className="travel-recommend">
+          <p className="travel-recommend-status">
+            Planner error: {this.state.error.message || "Unknown error"}
+          </p>
+        </section>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function RecommendPanel({ onSavePlan }) {
+  const [stops, setStops] = useState(() => [createPlannerStop()]);
+  const [routeOrder, setRouteOrder] = useState([]);
+  const [, setPlan] = useState(null);
+  const [planSaved, setPlanSaved] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
   const [status, setStatus] = useState("");
-  const [loadingPlan, setLoadingPlan] = useState(false);
-  const working = loadingPlan || stops.some((stop) => stop.loadingAttractions || stop.loadingRestaurants);
-  const selectedPlaces = stops.flatMap((stop) => getStopRoutePlaces(stop));
+  const working = stops.some(
+    (stop) => stop.loadingAttractions || stop.loadingRestaurants,
+  );
+  const selectedRoutePlaces = useMemo(
+    () => stops.flatMap((stop) => getStopRoutePlaces(stop)),
+    [stops],
+  );
+  const selectedRouteKeys = useMemo(
+    () => selectedRoutePlaces.map(getPlaceRouteKey),
+    [selectedRoutePlaces],
+  );
+  const effectiveRouteOrder = useMemo(
+    () => [
+      ...routeOrder.filter((key) => selectedRouteKeys.includes(key)),
+      ...selectedRouteKeys.filter((key) => !routeOrder.includes(key)),
+    ],
+    [routeOrder, selectedRouteKeys],
+  );
+  const selectedPlaces = useMemo(
+    () => orderPlacesByRouteOrder(selectedRoutePlaces, effectiveRouteOrder),
+    [effectiveRouteOrder, selectedRoutePlaces],
+  );
   const routeLocations = selectedPlaces
     .filter(
       (place) =>
@@ -717,17 +867,13 @@ function RecommendPanel() {
     );
   }
 
-  function toggleTheme(theme) {
-    setThemes((current) =>
-      current.includes(theme)
-        ? current.filter((item) => item !== theme)
-        : [...current, theme],
-    );
-  }
-
   function handleAddStop() {
-    setStops((current) => [...current, createPlannerStop(region.trim())]);
+    setStops((current) => [
+      ...current.map((stop) => ({ ...stop, isExpanded: false })),
+      createPlannerStop(),
+    ]);
     setPlan(null);
+    setPlanSaved(false);
   }
 
   function handleRemoveStop(stopId) {
@@ -737,25 +883,30 @@ function RecommendPanel() {
         : current,
     );
     setPlan(null);
+    setPlanSaved(false);
+  }
+
+  function handleToggleStopExpanded(stopId) {
+    updateStop(stopId, (stop) => ({ ...stop, isExpanded: !stop.isExpanded }));
   }
 
   function handleSelectAttraction(stopId, attractionId) {
     updateStop(stopId, (stop) => ({
       ...stop,
-      selectedAttractionId:
-        stop.selectedAttractionId === attractionId ? "" : attractionId,
-      restaurants:
-        stop.selectedAttractionId === attractionId ? stop.restaurants : [],
-      selectedRestaurantIds:
-        stop.selectedAttractionId === attractionId
-          ? stop.selectedRestaurantIds
-          : [],
+      selectedAttractionIds: getSelectedAttractionIds(stop).includes(
+        attractionId,
+      )
+        ? getSelectedAttractionIds(stop).filter((id) => id !== attractionId)
+        : [...getSelectedAttractionIds(stop), attractionId],
+      restaurants: [],
+      selectedRestaurantIds: [],
       status:
-        stop.selectedAttractionId === attractionId
-          ? "Select a tourist spot."
+        getSelectedAttractionIds(stop).includes(attractionId)
+          ? "Tourist spot removed from the route."
           : "Tourist spot added to the route.",
     }));
     setPlan(null);
+    setPlanSaved(false);
   }
 
   function handleToggleRestaurant(stopId, restaurantId) {
@@ -766,12 +917,13 @@ function RecommendPanel() {
         : [...stop.selectedRestaurantIds, restaurantId],
     }));
     setPlan(null);
+    setPlanSaved(false);
   }
 
   async function handleFindAttractions(event, stopId) {
     event.preventDefault();
     const stop = stops.find((item) => item.id === stopId);
-    const query = (stop?.attractionQuery || region).trim();
+    const query = (stop?.attractionQuery || "").trim();
     if (!stop || !query || stop.loadingAttractions) return;
 
     try {
@@ -780,17 +932,16 @@ function RecommendPanel() {
         status: "Searching tourist spots.",
       });
       setPlan(null);
+    setPlanSaved(false);
       let nextAttractions = await searchGooglePlaces({
         region: query,
-        themes,
         keyword: "관광지",
         limit: 20,
       });
 
-      if (nextAttractions.length === 0 && themes.length > 0) {
+      if (nextAttractions.length === 0) {
         nextAttractions = await searchGooglePlaces({
           region: query,
-          themes: [],
           keyword: "관광지",
           limit: 20,
         });
@@ -804,7 +955,7 @@ function RecommendPanel() {
       updateStop(stopId, {
         attractions: attractionItems,
         restaurants: [],
-        selectedAttractionId: "",
+        selectedAttractionIds: [],
         selectedRestaurantIds: [],
         attractionVisibleCount: RECOMMEND_VISIBLE_STEP,
         restaurantVisibleCount: RECOMMEND_VISIBLE_STEP,
@@ -812,7 +963,7 @@ function RecommendPanel() {
         restaurantCanLoadMore: true,
         status:
           attractionItems.length > 0
-            ? "Select one tourist spot to add it to the route."
+            ? "Select tourist spots to add them to the route."
             : "No tourist spots were found. Try another area.",
       });
     } catch (error) {
@@ -826,10 +977,17 @@ function RecommendPanel() {
 
   async function handleFindRestaurants(stopId) {
     const stop = stops.find((item) => item.id === stopId);
-    const selectedAttraction = stop?.attractions.find(
-      (place) => place.id === stop.selectedAttractionId,
+    const selectedAttractions = stop?.attractions.filter((place) =>
+      getSelectedAttractionIds(stop).includes(place.id),
     );
-    if (!stop || !selectedAttraction || stop.loadingRestaurants) return;
+    if (
+      !stop ||
+      !selectedAttractions ||
+      selectedAttractions.length === 0 ||
+      stop.loadingRestaurants
+    ) {
+      return;
+    }
 
     try {
       updateStop(stopId, {
@@ -838,16 +996,19 @@ function RecommendPanel() {
       });
       const restaurantItems = (
         await searchRestaurantsNearPlaces({
-          places: [selectedAttraction],
-          region: selectedAttraction.name || region.trim(),
-          cuisine,
-          priceFilter,
+          places: selectedAttractions,
+          region: selectedAttractions[0]?.name || "맛집",
+          cuisine: stop.cuisine,
+          priceFilter: stop.priceFilter,
+          restaurantQuery: stop.restaurantQuery,
           limit: 20,
         })
       ).map((item) => ({
         ...item,
         kind: "restaurant",
         theme: "맛집",
+        cuisine: stop.cuisine,
+        priceFilter: stop.priceFilter,
       }));
 
       updateStop(stopId, {
@@ -884,7 +1045,7 @@ function RecommendPanel() {
 
     if (stop.attractions.length >= RECOMMEND_MAX_RESULTS) return;
 
-    const query = (stop.attractionQuery || region).trim();
+    const query = (stop.attractionQuery || "").trim();
     if (!query) return;
 
     try {
@@ -898,15 +1059,13 @@ function RecommendPanel() {
       );
       let nextAttractions = await searchGooglePlaces({
         region: query,
-        themes,
         keyword: "관광지",
         limit: nextLimit,
       });
 
-      if (nextAttractions.length === 0 && themes.length > 0) {
+      if (nextAttractions.length === 0) {
         nextAttractions = await searchGooglePlaces({
           region: query,
-          themes: [],
           keyword: "관광지",
           limit: nextLimit,
         });
@@ -945,10 +1104,17 @@ function RecommendPanel() {
 
   async function handleViewMoreRestaurants(stopId) {
     const stop = stops.find((item) => item.id === stopId);
-    const selectedAttraction = stop?.attractions.find(
-      (place) => place.id === stop.selectedAttractionId,
+    const selectedAttractions = stop?.attractions.filter((place) =>
+      getSelectedAttractionIds(stop).includes(place.id),
     );
-    if (!stop || !selectedAttraction || stop.loadingRestaurants) return;
+    if (
+      !stop ||
+      !selectedAttractions ||
+      selectedAttractions.length === 0 ||
+      stop.loadingRestaurants
+    ) {
+      return;
+    }
 
     if (stop.restaurantVisibleCount < stop.restaurants.length) {
       updateStop(stopId, (currentStop) => ({
@@ -972,16 +1138,19 @@ function RecommendPanel() {
       );
       const restaurantItems = (
         await searchRestaurantsNearPlaces({
-          places: [selectedAttraction],
-          region: selectedAttraction.name || region.trim(),
-          cuisine,
-          priceFilter,
+          places: selectedAttractions,
+          region: selectedAttractions[0]?.name || "맛집",
+          cuisine: stop.cuisine,
+          priceFilter: stop.priceFilter,
+          restaurantQuery: stop.restaurantQuery,
           limit: nextLimit,
         })
       ).map((item) => ({
         ...item,
         kind: "restaurant",
         theme: "맛집",
+        cuisine: stop.cuisine,
+        priceFilter: stop.priceFilter,
       }));
       const mergedRestaurants = mergePlacesById(
         stop.restaurants,
@@ -1009,46 +1178,62 @@ function RecommendPanel() {
     }
   }
 
-  async function handleCreatePlan() {
-    if (selectedPlaces.length === 0 || loadingPlan) return;
+  function handleRouteReorder(fromIndex, toIndex) {
+    setRouteOrder(() =>
+      reorderItems(selectedPlaces.map(getPlaceRouteKey), fromIndex, toIndex),
+    );
+    setPlan(null);
+    setPlanSaved(false);
+  }
 
+  async function handleSavePlan() {
+    if (selectedPlaces.length === 0 || savingPlan) return;
+
+    setSavingPlan(true);
     try {
-      setLoadingPlan(true);
-      setStatus("Creating an optimized travel plan.");
-      const nextPlan = await createTravelPlan({
-        region: region.trim() || selectedPlaces[0]?.name || "Travel route",
-        themes,
-        attractions: selectedPlaces.map(
-          (place) => `${place.kind === "restaurant" ? "맛집" : "관광지"}: ${place.name}`,
-        ),
+      const saved = await onSavePlan?.({
+        title: `${selectedPlaces[0]?.name || "Travel"} route`,
+        summary: `${selectedPlaces.length} selected places saved from the planner map.`,
+        region: selectedPlaces[0]?.name || "Travel route",
+        routePlaces: selectedPlaces.map((place, index) => ({
+          orderIndex: index,
+          name: place.name,
+          kind: place.kind,
+          address: place.address || "",
+          latitude: place.latitude,
+          longitude: place.longitude,
+        })),
+        steps: [],
       });
-      setPlan(nextPlan);
-      setStatus(
-        nextPlan.steps.length > 0
-          ? "Plan is ready."
-          : "A plan could not be generated. Change places and try again.",
-      );
-    } catch (error) {
-      setStatus(error.message || "Failed to create a plan.");
+
+      if (saved) {
+        setPlanSaved(true);
+        setStatus("Route saved to My plan.");
+      } else {
+        setStatus("Plan could not be saved.");
+      }
     } finally {
-      setLoadingPlan(false);
+      setSavingPlan(false);
     }
   }
 
   return (
-    <section className="travel-recommend">
-      <div className="travel-recommend-head">
+    <section className="travel-recommend bg-white/95 p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
+      <div className="travel-recommend-head rounded-lg bg-slate-50 p-4">
         <div>
           <h2>Travel Planner</h2>
-          <p>Add tourist spots one by one, then place restaurants before the next stop.</p>
+          <p>
+            Add multiple places, fold each place, and build a route from the
+            selected results.
+          </p>
         </div>
-        <span>
+        <span className="shrink-0 rounded-full bg-sky-100 px-3 py-1 text-xs text-sky-700">
           {working ? "Working" : "Ready"}
         </span>
       </div>
 
-      <div className="travel-recommend-map-slot">
-        <Map
+      <div className="travel-recommend-map-slot overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <TravelMap
           posts={[
             {
               id: "recommend-route",
@@ -1063,59 +1248,9 @@ function RecommendPanel() {
         />
       </div>
 
-      <form className="travel-recommend-search" onSubmit={(event) => event.preventDefault()}>
-        <input
-          type="text"
-          value={region}
-          onChange={(event) => setRegion(event.target.value)}
-          placeholder="Travel region"
-        />
-        <button type="button" onClick={handleAddStop}>
-          Add place
-        </button>
-      </form>
-
-      <div className="travel-recommend-theme-list">
-        {RECOMMEND_THEMES.map((theme) => (
-          <button
-            key={theme}
-            type="button"
-            className={themes.includes(theme) ? "active" : ""}
-            onClick={() => toggleTheme(theme)}
-          >
-            {theme}
-          </button>
-        ))}
-      </div>
-
-      <div className="travel-recommend-food-controls">
-        <label>
-          <span>Restaurant price</span>
-          <select
-            value={priceFilter}
-            onChange={(event) => setPriceFilter(event.target.value)}
-          >
-            {RESTAURANT_PRICE_FILTERS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Cuisine</span>
-          <select
-            value={cuisine}
-            onChange={(event) => setCuisine(event.target.value)}
-          >
-            {RESTAURANT_CUISINES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      {selectedPlaces.length > 0 && (
+        <RouteOrderList places={selectedPlaces} onReorder={handleRouteReorder} />
+      )}
 
       {stops.map((stop, index) => (
         <PlannerStop
@@ -1123,10 +1258,15 @@ function RecommendPanel() {
           stop={stop}
           index={index}
           canRemove={stops.length > 1}
-          cuisine={cuisine}
-          priceFilter={priceFilter}
           onQueryChange={(value) =>
             updateStop(stop.id, { attractionQuery: value })
+          }
+          onCuisineChange={(value) => updateStop(stop.id, { cuisine: value })}
+          onPriceFilterChange={(value) =>
+            updateStop(stop.id, { priceFilter: value })
+          }
+          onRestaurantQueryChange={(value) =>
+            updateStop(stop.id, { restaurantQuery: value })
           }
           onFindAttractions={(event) => handleFindAttractions(event, stop.id)}
           onSelectAttraction={(id) => handleSelectAttraction(stop.id, id)}
@@ -1140,6 +1280,7 @@ function RecommendPanel() {
           }
           onViewMoreAttractions={() => handleViewMoreAttractions(stop.id)}
           onViewMoreRestaurants={() => handleViewMoreRestaurants(stop.id)}
+          onToggleExpanded={() => handleToggleStopExpanded(stop.id)}
           onRemove={() => handleRemoveStop(stop.id)}
         />
       ))}
@@ -1160,31 +1301,63 @@ function RecommendPanel() {
         <button
           className="travel-recommend-plan-btn"
           type="button"
-          onClick={handleCreatePlan}
-          disabled={selectedPlaces.length === 0 || loadingPlan}
+          onClick={handleSavePlan}
+          disabled={planSaved || savingPlan}
         >
-          {loadingPlan ? "Creating plan..." : "Create plan"}
+          {planSaved ? "Saved to My plan" : savingPlan ? "Saving..." : "Save plan"}
         </button>
       )}
+    </section>
+  );
+}
 
-      {plan && plan.steps.length > 0 && (
-        <div className="travel-recommend-plan">
-          <h3>{plan.title || `${region || "Route"} travel plan`}</h3>
-          {plan.summary && <p>{plan.summary}</p>}
-          <ol>
-            {plan.steps.map((step, index) => (
-              <li key={`${step.place || "step"}-${index}`}>
-                <time>{step.time || `${index + 1}`}</time>
-                <div>
-                  <strong>{step.place}</strong>
-                  <span>{step.theme}</span>
-                  <p>{step.note}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+function RouteOrderList({ places, onReorder }) {
+  const [dragIndex, setDragIndex] = useState(null);
+
+  function handleDragStart(event, index) {
+    setDragIndex(index);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }
+
+  function handleDrop(event, toIndex) {
+    event.preventDefault();
+    const fromIndex = dragIndex ?? Number(event.dataTransfer.getData("text/plain"));
+    setDragIndex(null);
+    if (!Number.isInteger(fromIndex) || fromIndex === toIndex) return;
+    onReorder(fromIndex, toIndex);
+  }
+
+  return (
+    <section className="travel-route-order">
+      <div className="travel-route-order-head">
+        <h3>Pin order</h3>
+        <span>{places.length} selected</span>
+      </div>
+      <ol>
+        {places.map((place, index) => (
+          <li
+            key={`${getPlaceRouteKey(place)}-${index}`}
+            className={dragIndex === index ? "is-dragging" : ""}
+            draggable
+            onDragStart={(event) => handleDragStart(event, index)}
+            onDragOver={handleDragOver}
+            onDragEnd={() => setDragIndex(null)}
+            onDrop={(event) => handleDrop(event, index)}
+          >
+            <b>{index + 1}</b>
+            <span>
+              <strong>{place.name}</strong>
+              <small>{place.kind === "restaurant" ? "Restaurant" : "Tourist spot"}</small>
+            </span>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
@@ -1193,9 +1366,10 @@ function PlannerStop({
   stop,
   index,
   canRemove,
-  cuisine,
-  priceFilter,
   onQueryChange,
+  onCuisineChange,
+  onPriceFilterChange,
+  onRestaurantQueryChange,
   onFindAttractions,
   onSelectAttraction,
   onFindRestaurants,
@@ -1204,10 +1378,12 @@ function PlannerStop({
   onRestaurantSortChange,
   onViewMoreAttractions,
   onViewMoreRestaurants,
+  onToggleExpanded,
   onRemove,
 }) {
-  const selectedAttraction = stop.attractions.find(
-    (place) => place.id === stop.selectedAttractionId,
+  const selectedAttractionIds = getSelectedAttractionIds(stop);
+  const selectedAttractions = stop.attractions.filter((place) =>
+    selectedAttractionIds.includes(place.id),
   );
   const sortedAttractions = sortRecommendPlaces(
     stop.attractions,
@@ -1225,89 +1401,160 @@ function PlannerStop({
     0,
     stop.restaurantVisibleCount,
   );
+  const selectedRestaurantCount = stop.selectedRestaurantIds.length;
+  const selectedAttractionSummary =
+    selectedAttractions.length === 0
+      ? stop.attractionQuery || "Not selected"
+      : selectedAttractions.length === 1
+        ? selectedAttractions[0].name
+        : `${selectedAttractions[0].name} +${selectedAttractions.length - 1}`;
 
   return (
-    <section className="travel-planner-stop">
+    <section className="travel-planner-stop rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
       <div className="travel-planner-stop-head">
         <div>
           <h3>Place {index + 1}</h3>
-          {selectedAttraction && <p>{selectedAttraction.name}</p>}
+          <p>
+            {selectedAttractionSummary}
+            {selectedRestaurantCount > 0
+              ? ` · ${selectedRestaurantCount} restaurants`
+              : ""}
+          </p>
         </div>
-        {canRemove && (
-          <button type="button" onClick={onRemove}>
-            Remove
-          </button>
-        )}
-      </div>
-
-      <form className="travel-recommend-search" onSubmit={onFindAttractions}>
-        <input
-          type="text"
-          value={stop.attractionQuery}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Tourist spot or area"
-        />
-        <button
-          type="submit"
-          disabled={!stop.attractionQuery.trim() || stop.loadingAttractions}
-        >
-          {stop.loadingAttractions ? "Searching..." : "Find tourist spots"}
-        </button>
-      </form>
-
-      {stop.status && <p className="travel-recommend-status">{stop.status}</p>}
-
-      {stop.attractions.length > 0 && (
-        <PlaceChoiceSection
-          title="Tourist spots"
-          places={visibleAttractions}
-          canViewMore={
-            visibleAttractions.length < sortedAttractions.length ||
-            (stop.attractionCanLoadMore &&
-              sortedAttractions.length < RECOMMEND_MAX_RESULTS)
-          }
-          sortMode={stop.attractionSort}
-          onSortChange={onAttractionSortChange}
-          onViewMore={onViewMoreAttractions}
-          viewMoreDisabled={stop.loadingAttractions}
-          selectedPlaceIds={
-            stop.selectedAttractionId ? [stop.selectedAttractionId] : []
-          }
-          onTogglePlace={onSelectAttraction}
-        />
-      )}
-
-      {selectedAttraction && (
-        <div className="travel-planner-restaurant-row">
-          <span>
-            Restaurants near {selectedAttraction.name} · {priceFilter} · {cuisine}
-          </span>
+        <div className="flex shrink-0 items-center gap-2">
+          {canRemove && (
+            <button type="button" onClick={onRemove}>
+              Remove
+            </button>
+          )}
           <button
             type="button"
-            onClick={onFindRestaurants}
-            disabled={stop.loadingRestaurants}
+            onClick={onToggleExpanded}
+            aria-expanded={stop.isExpanded}
           >
-            {stop.loadingRestaurants ? "Finding..." : "Find restaurants"}
+            {stop.isExpanded ? "Fold" : "Open"}
           </button>
         </div>
-      )}
+      </div>
 
-      {stop.restaurants.length > 0 && (
-        <PlaceChoiceSection
-          title="Restaurants before next place"
-          places={visibleRestaurants}
-          canViewMore={
-            visibleRestaurants.length < sortedRestaurants.length ||
-            (stop.restaurantCanLoadMore &&
-              sortedRestaurants.length < RECOMMEND_MAX_RESULTS)
-          }
-          sortMode={stop.restaurantSort}
-          onSortChange={onRestaurantSortChange}
-          onViewMore={onViewMoreRestaurants}
-          viewMoreDisabled={stop.loadingRestaurants}
-          selectedPlaceIds={stop.selectedRestaurantIds}
-          onTogglePlace={onToggleRestaurant}
-        />
+      {stop.isExpanded && (
+        <>
+          <form className="travel-recommend-search" onSubmit={onFindAttractions}>
+            <input
+              type="text"
+              value={stop.attractionQuery}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Tourist spot or area"
+            />
+            <button
+              type="submit"
+              disabled={!stop.attractionQuery.trim() || stop.loadingAttractions}
+            >
+              {stop.loadingAttractions ? "Searching..." : "Find tourist spots"}
+            </button>
+          </form>
+
+          {stop.status && (
+            <p className="travel-recommend-status">{stop.status}</p>
+          )}
+
+          {stop.attractions.length > 0 && (
+            <PlaceChoiceSection
+              title="Tourist spots"
+              places={visibleAttractions}
+              canViewMore={
+                visibleAttractions.length < sortedAttractions.length ||
+                (stop.attractionCanLoadMore &&
+                  sortedAttractions.length < RECOMMEND_MAX_RESULTS)
+              }
+              sortMode={stop.attractionSort}
+              onSortChange={onAttractionSortChange}
+              onViewMore={onViewMoreAttractions}
+              viewMoreDisabled={stop.loadingAttractions}
+              selectedPlaceIds={selectedAttractionIds}
+              onTogglePlace={onSelectAttraction}
+            />
+          )}
+
+          {selectedAttractions.length > 0 && (
+            <div className="travel-planner-restaurant-row grid gap-3 rounded-lg bg-sky-50 p-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <div>
+                <span>
+                  Restaurants near {selectedAttractions.length} selected tourist
+                  spot{selectedAttractions.length > 1 ? "s" : ""}
+                </span>
+                <div className="mt-2 grid gap-2">
+                  <label>
+                    <span>Restaurant search</span>
+                    <input
+                      type="text"
+                      value={stop.restaurantQuery}
+                      onChange={(event) =>
+                        onRestaurantQueryChange(event.target.value)
+                      }
+                      placeholder="Restaurant name or keyword"
+                    />
+                  </label>
+                </div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <label>
+                    <span>Restaurant price</span>
+                    <select
+                      value={stop.priceFilter}
+                      onChange={(event) =>
+                        onPriceFilterChange(event.target.value)
+                      }
+                    >
+                      {RESTAURANT_PRICE_FILTERS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Cuisine</span>
+                    <select
+                      value={stop.cuisine}
+                      onChange={(event) => onCuisineChange(event.target.value)}
+                    >
+                      {RESTAURANT_CUISINES.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onFindRestaurants}
+                disabled={stop.loadingRestaurants}
+              >
+                {stop.loadingRestaurants ? "Finding..." : "Find restaurants"}
+              </button>
+            </div>
+          )}
+
+          {stop.restaurants.length > 0 && (
+            <PlaceChoiceSection
+              title="Restaurants before next place"
+              places={visibleRestaurants}
+              canViewMore={
+                visibleRestaurants.length < sortedRestaurants.length ||
+                (stop.restaurantCanLoadMore &&
+                  sortedRestaurants.length < RECOMMEND_MAX_RESULTS)
+              }
+              sortMode={stop.restaurantSort}
+              onSortChange={onRestaurantSortChange}
+              onViewMore={onViewMoreRestaurants}
+              viewMoreDisabled={stop.loadingRestaurants}
+              selectedPlaceIds={stop.selectedRestaurantIds}
+              onTogglePlace={onToggleRestaurant}
+            />
+          )}
+        </>
       )}
     </section>
   );
@@ -1325,7 +1572,7 @@ function PlaceChoiceSection({
   onTogglePlace,
 }) {
   return (
-    <div className="travel-recommend-section">
+    <div className="travel-recommend-section rounded-lg border border-slate-200 bg-slate-50 p-3">
       <div className="travel-recommend-section-head">
         <h3>{title}</h3>
         <select
@@ -1341,7 +1588,10 @@ function PlaceChoiceSection({
       </div>
       <div className="travel-recommend-attractions">
         {places.map((item) => (
-          <label key={item.id} className="travel-recommend-attraction">
+          <label
+            key={item.id}
+            className="travel-recommend-attraction bg-white transition hover:border-sky-300 hover:shadow-sm"
+          >
             <input
               type="checkbox"
               checked={selectedPlaceIds.includes(item.id)}
@@ -1359,6 +1609,16 @@ function PlaceChoiceSection({
               <small>
                 {formatPlaceMeta(item)}
               </small>
+              {item.kind === "restaurant" && (
+                <span className="mt-2 flex flex-wrap gap-1.5">
+                  <em className="rounded-full bg-emerald-50 px-2 py-1 text-xs not-italic text-emerald-700">
+                    {item.priceFilter || RESTAURANT_PRICE_FILTERS[0]}
+                  </em>
+                  <em className="rounded-full bg-amber-50 px-2 py-1 text-xs not-italic text-amber-700">
+                    {item.cuisine || RESTAURANT_CUISINES[0]}
+                  </em>
+                </span>
+              )}
               <p>{item.address || item.description || item.reason}</p>
             </span>
           </label>
@@ -1375,6 +1635,141 @@ function PlaceChoiceSection({
         </button>
       )}
     </div>
+  );
+}
+
+function MyPlansPanel({ plans, onDelete, onGenerate }) {
+  const [generatingPlanId, setGeneratingPlanId] = useState(null);
+
+  async function handleGenerate(planId) {
+    if (generatingPlanId) return;
+
+    setGeneratingPlanId(planId);
+    try {
+      await onGenerate?.(planId);
+    } finally {
+      setGeneratingPlanId(null);
+    }
+  }
+
+  if (plans.length === 0) {
+    return (
+      <section className="travel-plan-empty">
+        <h3>No saved plans yet.</h3>
+        <p>Save a route in Travel Planner, then create the AI plan here.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="travel-my-plan-list">
+      {plans.map((plan) => {
+        const routePlaces = Array.isArray(plan.routePlaces)
+          ? [...plan.routePlaces].sort(
+              (left, right) => (left.orderIndex ?? 0) - (right.orderIndex ?? 0),
+            )
+          : [];
+        const hasGeneratedSteps = Array.isArray(plan.steps) && plan.steps.length > 0;
+        const generating = generatingPlanId === plan.id;
+        const routeLocations = routePlaces
+          .filter(
+            (place) =>
+              Number.isFinite(place.latitude) && Number.isFinite(place.longitude),
+          )
+          .map((place) => ({
+            latitude: place.latitude,
+            longitude: place.longitude,
+            locationName: place.name,
+            address: place.address,
+            categoryTag:
+              place.kind === "RESTAURANT" || place.kind === "restaurant"
+                ? "맛집"
+                : "관광",
+          }));
+
+        return (
+          <article key={plan.id} className="travel-my-plan-card">
+            <div className="travel-my-plan-head">
+              <div>
+                <span className="travel-my-plan-status">
+                  {hasGeneratedSteps ? "Generated" : "Route saved"}
+                </span>
+                <h3>{plan.title || "Route travel plan"}</h3>
+                <p>
+                  Saved {formatSavedPlanDate(plan.savedAt)}
+                  {plan.generatedAt ? ` · Created ${formatSavedPlanDate(plan.generatedAt)}` : ""}
+                </p>
+              </div>
+              <div className="travel-my-plan-actions">
+                <button
+                  type="button"
+                  onClick={() => handleGenerate(plan.id)}
+                  disabled={generating || routePlaces.length === 0}
+                >
+                  {generating
+                    ? "Creating..."
+                    : hasGeneratedSteps
+                      ? "Recreate plan"
+                      : "Create plan"}
+                </button>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => onDelete(plan.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            <div className="travel-my-plan-map">
+              <TravelMap
+                posts={[
+                  {
+                    id: `saved-plan-${plan.id}`,
+                    caption: plan.title || "Saved route",
+                    categoryTag: "여행",
+                    locations: routeLocations,
+                  },
+                ]}
+                title="Saved Route"
+                showMarkerLabels
+                showRouteLines
+              />
+            </div>
+
+            <div className="travel-my-plan-route">
+              {routePlaces.map((place, index) => (
+                <span key={`${plan.id}-route-${index}`}>
+                  {index + 1}. {place.name}
+                </span>
+              ))}
+            </div>
+
+            {plan.summary && <p>{plan.summary}</p>}
+
+            {hasGeneratedSteps ? (
+              <ol>
+                {plan.steps.map((step, index) => (
+                  <li key={`${plan.id}-step-${index}`}>
+                    <time>{step.time || index + 1}</time>
+                    <div>
+                      <strong>{step.place || "Place"}</strong>
+                      <span>{step.theme || ""}</span>
+                      <p>{step.note || ""}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="travel-my-plan-pending">
+                Save complete. Create the detailed AI route from this saved order.
+              </div>
+            )}
+          </article>
+        );
+      })}
+    </section>
   );
 }
 
@@ -1713,7 +2108,7 @@ function PostImageCarousel({ post }) {
         />
       ) : (
         <div className="travel-post-map-slide">
-          <Map posts={[post]} title="Marked Map" />
+          <TravelMap posts={[post]} title="Marked Map" />
         </div>
       )}
 
@@ -1889,7 +2284,7 @@ function PostEditForm({ post, onCancel, onSubmit }) {
       {orderedEditImages.length > 1 && (
         <ImageOrderGrid items={orderedEditImages} onReorder={handleImageReorder} />
       )}
-      <Map
+      <TravelMap
         selectable
         selectedLocations={locations}
         markerCategoryTag={categoryTag}
@@ -2104,7 +2499,7 @@ function PostComposer({ onClose, onSubmit }) {
           onRemoveTag={handleRemoveTag}
           onSuggestTags={handleSuggestTags}
         />
-        <Map
+        <TravelMap
           selectable
           selectedLocations={locations}
           markerCategoryTag={categoryTag}
@@ -2298,13 +2693,41 @@ function mergePlacesById(...placeLists) {
   return Array.from(merged.values());
 }
 
+function getPlaceRouteKey(place) {
+  const id = place?.id || place?.placeId || place?.name;
+  const latitude = Number.isFinite(place?.latitude) ? place.latitude : "";
+  const longitude = Number.isFinite(place?.longitude) ? place.longitude : "";
+  return `${place?.kind || "place"}:${id || `${latitude},${longitude}`}`;
+}
+
+function orderPlacesByRouteOrder(places, routeOrder) {
+  if (!Array.isArray(routeOrder) || routeOrder.length === 0) return places;
+
+  const placeMap = new Map();
+  places.forEach((place) => {
+    const key = getPlaceRouteKey(place);
+    if (!placeMap.has(key)) {
+      placeMap.set(key, place);
+    }
+  });
+
+  return [
+    ...routeOrder.map((key) => placeMap.get(key)).filter(Boolean),
+    ...places.filter((place) => {
+      const key = getPlaceRouteKey(place);
+      return !routeOrder.includes(key) || !placeMap.has(key);
+    }),
+  ];
+}
+
 function createPlannerStop(defaultQuery = "") {
   return {
     id: `stop-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     attractionQuery: defaultQuery,
     attractions: [],
     restaurants: [],
-    selectedAttractionId: "",
+    restaurantQuery: "",
+    selectedAttractionIds: [],
     selectedRestaurantIds: [],
     attractionVisibleCount: RECOMMEND_VISIBLE_STEP,
     restaurantVisibleCount: RECOMMEND_VISIBLE_STEP,
@@ -2312,6 +2735,9 @@ function createPlannerStop(defaultQuery = "") {
     restaurantCanLoadMore: true,
     attractionSort: "rating",
     restaurantSort: "rating",
+    cuisine: RESTAURANT_CUISINES[0],
+    priceFilter: RESTAURANT_PRICE_FILTERS[0],
+    isExpanded: true,
     status: "",
     loadingAttractions: false,
     loadingRestaurants: false,
@@ -2319,14 +2745,23 @@ function createPlannerStop(defaultQuery = "") {
 }
 
 function getStopRoutePlaces(stop) {
-  const attraction = stop.attractions.find(
-    (place) => place.id === stop.selectedAttractionId,
+  const selectedAttractionIds = getSelectedAttractionIds(stop);
+  const attractions = stop.attractions.filter((place) =>
+    selectedAttractionIds.includes(place.id),
   );
   const restaurants = stop.restaurants.filter((place) =>
     stop.selectedRestaurantIds.includes(place.id),
   );
 
-  return attraction ? [attraction, ...restaurants] : restaurants;
+  return [...attractions, ...restaurants];
+}
+
+function getSelectedAttractionIds(stop) {
+  if (Array.isArray(stop?.selectedAttractionIds)) {
+    return stop.selectedAttractionIds;
+  }
+
+  return stop?.selectedAttractionId ? [stop.selectedAttractionId] : [];
 }
 
 function formatPlaceMeta(place) {
@@ -2353,4 +2788,19 @@ function mergeTagLists(...tagLists) {
     splitTags(tag).forEach((item) => merged.add(item));
   });
   return Array.from(merged).slice(0, 8);
+}
+
+function formatSavedPlanDate(value) {
+  if (!value) return "Saved plan";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Saved plan";
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }

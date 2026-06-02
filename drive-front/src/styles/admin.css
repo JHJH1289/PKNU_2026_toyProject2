@@ -1,210 +1,124 @@
-﻿/* Admin */
-.admin-panel {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
+@layer components {
+  .admin-panel,
+  .admin-owner-section,
+  .admin-photo-folder-view {
+    @apply flex min-w-0 flex-col;
+  }
+
+  .admin-folder-list {
+    @apply mt-7 flex flex-col gap-7;
+  }
+
+  .admin-panel-header,
+  .admin-owner-header,
+  .admin-photo-folder-header {
+    @apply flex justify-between gap-4 border-b pb-4;
+    border-color: var(--line);
+  }
+
+  .admin-panel-header {
+    @apply items-center;
+  }
+
+  .admin-owner-header {
+    @apply items-baseline pb-2;
+  }
+
+  .admin-photo-folder-header {
+    @apply mt-6 items-end;
+  }
+
+  .admin-panel-header h2,
+  .admin-owner-header h2 {
+    @apply mb-1 text-2xl font-black tracking-tight text-slate-950;
+  }
+
+  .admin-panel-header p,
+  .admin-empty {
+    @apply m-0 text-sm;
+    color: var(--muted);
+  }
+
+  .admin-empty {
+    @apply mt-6;
+  }
+
+  .admin-folder-grid {
+    @apply grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-4;
+  }
+
+  .admin-folder-card {
+    @apply flex min-w-0 flex-col gap-3 border bg-white/90 p-3 shadow-sm transition hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl;
+    border-color: var(--line);
+    border-radius: 20px;
+  }
+
+  .admin-folder-open-btn,
+  .admin-folder-meta button {
+    @apply block w-full bg-transparent p-0 text-left text-inherit shadow-none;
+  }
+
+  .admin-folder-open-btn:hover,
+  .admin-folder-meta button:hover {
+    @apply translate-y-0 bg-transparent;
+  }
+
+  .admin-folder-preview {
+    @apply grid aspect-[4/3] place-items-center overflow-hidden bg-sky-50;
+    border-radius: 18px;
+  }
+
+  .admin-folder-preview-image,
+  .admin-folder-preview-empty {
+    @apply block h-full w-full object-cover;
+  }
+
+  .admin-folder-preview-empty {
+    background: linear-gradient(135deg, #e8f3ff, #eef2ff 48%, #f0f9ff);
+  }
+
+  .admin-folder-meta h3 {
+    @apply mb-1 mt-0 break-words text-base font-extrabold text-slate-950;
+  }
+
+  .admin-photo-folder-header .back-btn {
+    @apply mb-0 shrink-0;
+  }
+
+  .admin-photo-folder-header div {
+    @apply min-w-0 text-right;
+  }
+
+  .admin-photo-folder-header span {
+    @apply text-xs font-extrabold uppercase tracking-wide;
+    color: var(--muted);
+  }
+
+  .admin-photo-folder-header h3 {
+    @apply mt-1 break-words text-2xl font-black leading-tight text-slate-950;
+  }
+
+  .admin-photo-grid {
+    @apply grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2;
+  }
+
+  .admin-photo-card {
+    @apply relative block overflow-hidden border bg-sky-50 p-0 text-left text-white transition hover:border-sky-300;
+    border-color: var(--line);
+    border-radius: 14px;
+  }
+
+  .admin-photo-card:hover {
+    @apply translate-y-0;
+  }
+
+  .admin-photo-image {
+    @apply block aspect-[4/3] w-full object-cover;
+  }
+
+  .admin-photo-card span {
+    @apply absolute inset-x-0 bottom-0 break-words px-2.5 pb-2 pt-8 text-xs font-extrabold leading-tight text-white;
+    background: linear-gradient(180deg, transparent, rgba(17, 24, 39, 0.72));
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  }
 }
-
-.admin-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 16px;
-}
-
-.admin-panel-header h2 {
-  margin-bottom: 4px;
-}
-
-.admin-panel-header p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.admin-empty {
-  margin-top: 24px;
-  color: var(--muted);
-}
-
-.admin-folder-list {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  margin-top: 28px;
-}
-
-.admin-owner-section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.admin-owner-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 8px;
-}
-
-.admin-owner-header h2 {
-  margin-bottom: 0;
-}
-
-.admin-folder-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 14px;
-}
-
-.admin-folder-card {
-  display: flex;
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-}
-
-.admin-folder-open-btn {
-  display: block;
-  width: 100%;
-  border-radius: 10px;
-  background: transparent;
-  padding: 0;
-}
-
-.admin-folder-open-btn:hover {
-  background: transparent;
-}
-
-.admin-folder-preview {
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-  border-radius: 10px;
-  background: #edf5ff;
-}
-
-.admin-folder-preview-image,
-.admin-folder-preview-empty {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.admin-folder-preview-empty {
-  background: linear-gradient(135deg, #edf5ff, #dcecff);
-}
-
-.admin-folder-meta h3 {
-  margin: 0 0 4px;
-  color: var(--text);
-  font-size: 16px;
-  overflow-wrap: anywhere;
-}
-
-.admin-folder-meta button {
-  width: 100%;
-  background: transparent;
-  color: inherit;
-  padding: 0;
-  text-align: left;
-}
-
-.admin-folder-meta button:hover {
-  background: transparent;
-}
-
-.admin-photo-folder-view {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 16px;
-  margin-top: 22px;
-}
-
-.admin-photo-folder-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 14px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 14px;
-}
-
-.admin-photo-folder-header .back-btn {
-  flex: 0 0 auto;
-  margin-bottom: 0;
-}
-
-.admin-photo-folder-header div {
-  min-width: 0;
-  text-align: right;
-}
-
-.admin-photo-folder-header span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.admin-photo-folder-header h3 {
-  margin: 4px 0 0;
-  color: #0b3f86;
-  font-size: 22px;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-.admin-photo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-}
-
-.admin-photo-card {
-  position: relative;
-  display: block;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #edf5ff;
-  color: #ffffff;
-  padding: 0;
-  text-align: left;
-}
-
-.admin-photo-card:hover {
-  border-color: #79aee8;
-}
-
-.admin-photo-image {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  background: #edf5ff;
-  object-fit: cover;
-}
-
-.admin-photo-card span {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow-wrap: anywhere;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.68));
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.25;
-  padding: 24px 9px 8px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.48);
-}
-
-

@@ -168,6 +168,7 @@ export async function searchRestaurantsNearPlaces({
   region,
   cuisine,
   priceFilter,
+  restaurantQuery = "",
   limit = 10,
 }) {
   const anchorPlaces = (places || []).filter(
@@ -175,6 +176,7 @@ export async function searchRestaurantsNearPlaces({
       Number.isFinite(place.latitude) && Number.isFinite(place.longitude),
   );
   const keyword = [
+    restaurantQuery ? restaurantQuery.trim() : "",
     cuisine && cuisine !== "\uC804\uCCB4" ? cuisine : "",
     priceFilter && priceFilter !== "\uC804\uCCB4" ? priceFilter : "",
     "\uB9DB\uC9D1",

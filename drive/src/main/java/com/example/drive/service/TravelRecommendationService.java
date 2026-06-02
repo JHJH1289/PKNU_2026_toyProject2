@@ -2,6 +2,8 @@ package com.example.drive.service;
 
 import com.example.drive.dto.TravelPlanResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +11,8 @@ import java.util.List;
 
 @Service
 public class TravelRecommendationService {
+
+    private static final Logger log = LoggerFactory.getLogger(TravelRecommendationService.class);
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
@@ -26,10 +30,22 @@ public class TravelRecommendationService {
             return new TravelPlanResponse("", "", List.of());
         }
 
-        String content = chatClient.prompt()
-                .user(buildPlanPrompt(normalizedRegion, normalizedThemes, normalizedAttractions))
-                .call()
-                .content();
+        long startedAt = System.nanoTime();
+        String content;
+        try {
+            content = chatClient.prompt()
+                    .user(buildPlanPrompt(normalizedRegion, normalizedThemes, normalizedAttractions))
+                    .call()
+                    .content();
+        } finally {
+            long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000L;
+            log.info(
+                    "Travel plan AI generation took {} ms. region={}, places={}",
+                    elapsedMillis,
+                    normalizedRegion,
+                    normalizedAttractions.size()
+            );
+        }
 
         try {
             TravelPlanResponse response = objectMapper.readValue(stripJsonFence(content), TravelPlanResponse.class);

@@ -43,6 +43,10 @@ async function request(url, options = {}) {
     throw new Error(message || `HTTP ${response.status}`);
   }
 
+  if (response.status === 204) {
+    return null;
+  }
+
   return response.json();
 }
 
@@ -60,4 +64,51 @@ export async function createTravelPlan({ region, themes, attractions }) {
     summary: response?.summary || "",
     steps: Array.isArray(response?.steps) ? response.steps : [],
   };
+}
+
+function normalizeSavedPlan(plan) {
+  return {
+    id: plan?.id,
+    title: plan?.title || "",
+    summary: plan?.summary || "",
+    region: plan?.region || "",
+    status: plan?.status || "DRAFT",
+    savedAt: plan?.savedAt || "",
+    generatedAt: plan?.generatedAt || "",
+    routePlaces: Array.isArray(plan?.routePlaces) ? plan.routePlaces : [],
+    steps: Array.isArray(plan?.steps) ? plan.steps : [],
+  };
+}
+
+export async function fetchSavedTravelPlans() {
+  const response = await request("/api/recommend/plans");
+  return Array.isArray(response) ? response.map(normalizeSavedPlan) : [];
+}
+
+export async function saveTravelPlan(plan) {
+  const response = await request("/api/recommend/plans", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(plan),
+  });
+
+  return normalizeSavedPlan(response);
+}
+
+export async function generateSavedTravelPlan(planId) {
+  const response = await request(`/api/recommend/plans/${planId}/generate`, {
+    method: "POST",
+  });
+
+  return normalizeSavedPlan(response);
+}
+
+export async function deleteTravelPlan(planId) {
+  await request(`/api/recommend/plans/${planId}`, {
+    method: "DELETE",
+  });
+
+  return true;
 }
