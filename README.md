@@ -1,111 +1,113 @@
 # Travelog
 
-Travelog is a travel photo feed and route planner. Users can upload trip posts with multiple photos, tags, comments, likes, views, and map locations. They can also build a travel route from tourist spots and restaurants, save the ordered pins, and generate an AI one-day plan later from My plan.
+**Travelog**는 여행 사진 피드와 여행 경로 계획 기능을 제공하는 웹 서비스입니다.
+사용자는 여러 장의 사진, 태그, 댓글, 좋아요, 조회수, 지도 위치를 포함한 여행 게시글을 업로드할 수 있습니다. 또한 관광지와 음식점을 선택해 여행 경로를 만들고, 선택한 핀 순서를 저장한 뒤 `My Plan`에서 AI 기반 하루 여행 일정을 생성할 수 있습니다.
 
-## Screenshots And Features
+## 화면 및 주요 기능
 
-### Travel Feed
+### 여행 피드
 
 ![Travel feed carousel](docs/readme-assets/travel-feed-carousel.png)
 
-The home feed shows travel posts in a clean social feed layout.
+홈 화면에서는 여행 게시글을 깔끔한 소셜 피드 형태로 확인할 수 있습니다.
 
-- Multi-image carousel with slide count and navigation.
-- Post author, caption, tags, likes, comments, and view count.
-- Sidebar navigation for Home, My Page, Travel Planner, and posting.
-- Default travel categories are exposed as quick filters.
+* 여러 이미지를 볼 수 있는 캐러셀 기능
+* 이미지 개수 표시 및 이전/다음 이동 기능
+* 게시글 작성자, 설명, 태그, 좋아요, 댓글, 조회수 표시
+* Home, My Page, Travel Planner, 게시글 작성 메뉴를 포함한 사이드바
+* 기본 여행 카테고리를 빠르게 선택할 수 있는 필터 기능
 
-### Tag Search And Filtering
+### 태그 검색 및 필터링
 
 ![Travel feed tag search](docs/readme-assets/travel-feed-tags.png)
 
-The sidebar keeps common categories visible and lets users search additional tags.
+사이드바에서는 자주 사용하는 기본 카테고리를 확인하고, 게시글에서 수집된 추가 태그를 검색할 수 있습니다.
 
-- Fixed default tags: travel, cafe, and food.
-- More tags dropdown for dynamic tags collected from posts.
-- Search box for filtering tag names.
-- Selected category highlights the active feed filter.
+* 기본 태그: travel, cafe, food
+* 게시글에서 수집된 동적 태그를 확인할 수 있는 더보기 드롭다운
+* 태그 이름 검색 기능
+* 선택한 카테고리를 강조 표시하여 현재 피드 필터 확인 가능
 
-### My Page
+### 마이페이지
 
 ![My page posts](docs/readme-assets/my-page-posts.png)
 
-My Page combines profile information, travel map, and the user's own posts.
+마이페이지에서는 프로필 정보, 여행 지도, 사용자가 작성한 게시글을 한 번에 확인할 수 있습니다.
 
-- Profile card with avatar, username, post count, and view count.
-- Editable profile information.
-- Travel route map built from the user's post locations.
-- My posts and My plan are separated as sidebar subcategories.
+* 프로필 이미지, 사용자 이름, 게시글 수, 조회수를 포함한 프로필 카드
+* 프로필 정보 수정 기능
+* 사용자의 게시글 위치를 기반으로 구성되는 여행 경로 지도
+* `My Posts`와 `My Plan`을 분리한 사이드바 하위 메뉴
 
 ### My Plan
 
 ![Generated travel plan](docs/readme-assets/my-plan-generated.png)
 
-My plan stores routes created in Travel Planner and can generate an AI itinerary from the saved pin order.
+`My Plan`에서는 Travel Planner에서 생성한 여행 경로를 저장하고, 저장된 핀 순서를 기반으로 AI 여행 일정을 생성할 수 있습니다.
 
-- Saved route map with numbered pins and route lines.
-- Ordered place list saved from the planner.
-- Create plan / Recreate plan button for AI itinerary generation.
-- Generated plan status, saved time, generated time, summary, and timeline steps.
-- Delete button for saved plans.
+* 번호가 표시된 핀과 경로선을 포함한 저장된 여행 지도
+* Travel Planner에서 저장한 장소 순서 목록
+* AI 여행 일정 생성을 위한 `Create Plan` / `Recreate Plan` 버튼
+* 생성 상태, 저장 시간, 생성 시간, 요약, 타임라인 단계 표시
+* 저장된 여행 계획 삭제 기능
 
-### Travel Planner Route Builder
+### Travel Planner 경로 생성
 
 ![Travel planner route](docs/readme-assets/travel-planner-route.png)
 
-Travel Planner lets users build a route visually before saving it to My plan.
+Travel Planner에서는 여행 경로를 시각적으로 구성한 뒤 `My Plan`에 저장할 수 있습니다.
 
-- Recommended route map updates from selected places.
-- Pin order list shows the selected route order.
-- Route order can be changed by drag and drop.
-- Multiple places can be added, folded, opened, and removed.
-- Save plan stores the map locations and ordered route in Oracle.
+* 선택한 장소를 기반으로 추천 경로 지도 갱신
+* 선택한 장소의 핀 순서 목록 표시
+* 드래그 앤 드롭을 통한 경로 순서 변경
+* 여러 장소 추가, 접기, 펼치기, 삭제 기능
+* 선택한 지도 위치와 경로 순서를 Oracle 데이터베이스에 저장
 
-### Tourist Spot And Restaurant Search
+### 관광지 및 음식점 검색
 
 ![Travel planner search](docs/readme-assets/travel-planner-search.png)
 
-Each planner place can search tourist spots and restaurants.
+각 여행 장소에서는 관광지와 음식점을 검색할 수 있습니다.
 
-- Tourist spot search by area or keyword.
-- Multiple tourist spots can be selected for the route.
-- Results show rating, review count, address, and image when available.
-- Restaurant search can run near selected tourist spots.
-- Restaurant filters include keyword, price, and cuisine.
+* 지역 또는 키워드 기반 관광지 검색
+* 여러 관광지를 선택하여 여행 경로에 추가
+* 평점, 리뷰 수, 주소, 이미지 정보 표시
+* 선택한 관광지 주변 음식점 검색
+* 키워드, 가격대, 음식 종류를 활용한 음식점 필터링
 
-## Main Features
+## 주요 기능
 
-### Posts
+### 게시글
 
-- Create, update, and delete travel posts.
-- Upload multiple images per post.
-- Add multiple map locations per post.
-- Reorder selected locations.
-- Add tags and request AI tag suggestions.
-- Like, comment, and track views.
+* 여행 게시글 생성, 수정, 삭제
+* 게시글당 여러 이미지 업로드
+* 게시글에 여러 지도 위치 추가
+* 선택한 위치 순서 변경
+* 태그 추가 및 AI 태그 추천 요청
+* 좋아요, 댓글, 조회수 기능
 
-### Maps
+### 지도
 
-- Google Maps integration.
-- Marker labels and route lines.
-- Place search through Google Places.
-- Address lookup and reverse geocoding.
-- Location selection from map clicks.
+* Google Maps 연동
+* 마커 라벨 및 경로선 표시
+* Google Places 기반 장소 검색
+* 주소 검색 및 역지오코딩
+* 지도 클릭을 통한 위치 선택
 
 ### Travel Planner
 
-- Search tourist spots.
-- Search restaurants near selected spots.
-- Select multiple route places.
-- Drag to reorder pins.
-- Save route data to the backend.
-- Generate AI plans from saved routes in My plan.
+* 관광지 검색
+* 선택한 관광지 주변 음식점 검색
+* 여러 장소를 선택해 여행 경로 구성
+* 드래그 앤 드롭으로 핀 순서 변경
+* 구성한 경로 데이터를 백엔드에 저장
+* `My Plan`에서 저장된 경로를 기반으로 AI 여행 일정 생성
 
 ### AI
 
-- Ollama-powered AI tag suggestion.
-- Ollama-powered travel itinerary generation.
-- Current model is configured in:
+* Ollama 기반 AI 태그 추천
+* Ollama 기반 여행 일정 생성
+* 현재 사용 중인 모델 설정 위치:
 
 ```text
 drive/src/main/resources/application.properties
@@ -117,71 +119,71 @@ spring.ai.ollama.chat.options.model=gemma4:latest
 spring.ai.ollama.chat.options.temperature=0.3
 ```
 
-Travel plan prompts are managed in:
+여행 일정 생성 프롬프트 관리 위치:
 
 ```text
 drive/src/main/java/com/example/drive/service/TravelRecommendationService.java
 ```
 
-AI tag prompts are managed in:
+AI 태그 추천 프롬프트 관리 위치:
 
 ```text
 drive/src/main/java/com/example/drive/service/AiTagSuggestionService.java
 ```
 
-## Tech Stack
+## 기술 스택
 
 ### Frontend
 
-- React
-- Vite
-- JavaScript
-- Tailwind CSS
-- Google Maps JavaScript API
-- Google Places API
+* React
+* Vite
+* JavaScript
+* Tailwind CSS
+* Google Maps JavaScript API
+* Google Places API
 
 ### Backend
 
-- Spring Boot
-- Spring Security
-- JWT
-- Spring Data JPA / Hibernate
-- Oracle Database
-- Spring AI with Ollama
-- Local file storage
+* Spring Boot
+* Spring Security
+* JWT
+* Spring Data JPA / Hibernate
+* Oracle Database
+* Spring AI with Ollama
+* Local file storage
 
-## Database
+## 데이터베이스
 
-The main Oracle schema includes:
+주요 Oracle 스키마는 다음 테이블로 구성됩니다.
 
-- `USERS`
-- `POSTS`
-- `POST_IMAGES`
-- `POST_LOCATIONS`
-- `COMMENTS`
-- `POST_LIKES`
-- `POST_VIEWS`
-- `TRAVEL_PLANS`
-- `TRAVEL_PLAN_PLACES`
-- `TRAVEL_PLAN_STEPS`
+* `USERS`
+* `POSTS`
+* `POST_IMAGES`
+* `POST_LOCATIONS`
+* `COMMENTS`
+* `POST_LIKES`
+* `POST_VIEWS`
+* `TRAVEL_PLANS`
+* `TRAVEL_PLAN_PLACES`
+* `TRAVEL_PLAN_STEPS`
 
-Travel Planner saved plans use:
+Travel Planner의 저장된 여행 계획은 다음 SQL 파일을 사용합니다.
 
 ```text
 drive/oracle-travel-plan-schema.sql
 ```
 
-`TRAVEL_PLAN_PLACES` stores the map and route data:
+`TRAVEL_PLAN_PLACES` 테이블은 지도 및 경로 데이터를 저장합니다.
 
-- `PLAN_ID`
-- `SORT_ORDER`
-- `PLACE_NAME`
-- `PLACE_KIND`
-- `ADDRESS`
-- `LATITUDE`
-- `LONGITUDE`
+* `PLAN_ID`
+* `SORT_ORDER`
+* `PLACE_NAME`
+* `PLACE_KIND`
+* `ADDRESS`
+* `LATITUDE`
+* `LONGITUDE`
 
-## Run Locally
+## 로컬 실행 방법
 
 ### Backend
 
@@ -190,7 +192,7 @@ cd D:\code\toyProject2\drive
 .\gradlew.bat bootRun
 ```
 
-The backend runs on port `8080` by default.
+백엔드는 기본적으로 `8080` 포트에서 실행됩니다.
 
 ### Frontend
 
@@ -200,17 +202,17 @@ npm install
 npm run dev
 ```
 
-The frontend dev server usually runs on `5173` or the next available Vite port.
+프론트엔드 개발 서버는 일반적으로 `5173` 포트에서 실행되며, 해당 포트가 사용 중인 경우 다음 사용 가능한 Vite 포트로 실행됩니다.
 
-### Google Maps
+### Google Maps 설정
 
-Create `drive-front/.env`:
+`drive-front/.env` 파일을 생성하고 아래 내용을 추가합니다.
 
 ```env
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
 
-## Verification
+## 검증 방법
 
 ### Backend
 
@@ -226,3 +228,4 @@ cd D:\code\toyProject2\drive-front
 npm run lint
 npm run build
 ```
+
